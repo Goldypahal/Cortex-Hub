@@ -1,0 +1,317 @@
+/* ==========================================================================
+   AURA AI Platform - Customization Configurator & BOM Calculator
+   Eliminates circular stepper bubbles; implements engineering phases
+   ========================================================================== */
+
+.configurator-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Header */
+.wizard-header {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.wizard-header h2 {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #FFF;
+  margin-top: 4px;
+}
+
+.wizard-header p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Engineering Phase Pipeline Bar (No bubble circles) */
+.phase-pipeline-track {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 4px;
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .phase-pipeline-track {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.phase-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: transparent;
+}
+
+.phase-item:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.phase-item.active {
+  background: var(--bg-surface-2);
+  color: var(--accent-lime);
+  border: 1px solid var(--accent-lime-border);
+}
+
+.phase-item.completed {
+  color: var(--text-secondary);
+}
+
+.phase-idx {
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.phase-item.active .phase-idx {
+  color: var(--accent-lime);
+}
+
+/* Wizard Grid (Left Form / Right Live BOM Specification) */
+.wizard-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--space-5);
+}
+
+@media (max-width: 1024px) {
+  .wizard-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sharp Option Cards */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.option-card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.option-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-3);
+}
+
+.option-card.selected {
+  border-color: var(--accent-lime);
+  background: var(--bg-surface-3);
+  box-shadow: 2px 2px 0px var(--accent-lime);
+}
+
+.option-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.option-card.selected .option-check {
+  color: var(--accent-lime);
+  font-weight: 700;
+}
+
+.option-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #FFF;
+}
+
+.option-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.option-modifier-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent-lime);
+  font-weight: 600;
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+/* Brand Customization Panel */
+.brand-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+  .brand-editor-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.color-swatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all var(--transition-fast);
+}
+
+.color-swatch.active {
+  border-color: #FFF;
+  transform: scale(1.15);
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Live Widget Simulation Box (Tactile) */
+.widget-preview-box {
+  background: #050608;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 280px;
+}
+
+.widget-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.widget-preview-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.widget-message-sim {
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 0.8rem;
+  max-width: 85%;
+  line-height: 1.45;
+}
+
+/* Bill of Materials (BOM) Card Right */
+.estimate-card {
+  position: sticky;
+  top: 80px;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+}
+
+.estimate-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.estimate-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.estimate-total-range {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--accent-lime);
+  margin-top: 2px;
+  letter-spacing: -0.02em;
+}
+
+.estimate-currency-alt {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.estimate-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+.estimate-line-item {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+}
+
+.estimate-timeline-badge {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  margin-bottom: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.wizard-nav-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}

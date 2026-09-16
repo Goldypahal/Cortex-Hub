@@ -1,0 +1,345 @@
+/* ==========================================================================
+   AURA AI Platform - Layout & Structural Architecture
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Engineering Blueprint Dot-Grid Mesh */
+.engineering-grid-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 0);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.8;
+}
+
+.app-container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+/* Top System Telemetry Bar */
+.system-status-ticker {
+  background: #040507;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px var(--space-6);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: var(--z-ticker);
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ticker-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ticker-beacon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-live);
+  box-shadow: 0 0 6px var(--status-live);
+  display: inline-block;
+}
+
+.ticker-divider {
+  color: var(--border-strong);
+}
+
+.ticker-item strong {
+  color: var(--text-primary);
+}
+
+.ticker-right {
+  display: flex;
+  gap: 12px;
+}
+
+.ticker-tag {
+  color: var(--accent-lime);
+  letter-spacing: 0.04em;
+}
+
+/* Header Navigation */
+.app-header {
+  position: sticky;
+  top: 0;
+  height: 64px;
+  background: rgba(12, 13, 18, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-medium);
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.brand-monogram {
+  width: 32px;
+  height: 32px;
+  background: var(--accent-lime);
+  color: #000;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  letter-spacing: -0.05em;
+  box-shadow: var(--shadow-tactile);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.brand-name span:first-child {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #FFF;
+}
+
+.brand-version {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent-lime);
+  font-weight: 600;
+}
+
+.brand-subtext {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Nav Menu Buttons (Sharp, Technical) */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.nav-index {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-link.active {
+  color: #000;
+  background: var(--accent-lime);
+  font-weight: 700;
+}
+
+.nav-link.active .nav-index {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.nav-count {
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+/* Header Right Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.role-switcher-container {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.role-label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  margin-right: var(--space-2);
+}
+
+.role-select {
+  background: transparent;
+  color: var(--accent-lime);
+  border: none;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.role-select option {
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+/* View Sections */
+.view-section {
+  display: none;
+  animation: viewAppear 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.view-section.active {
+  display: block;
+}
+
+@keyframes viewAppear {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Technical Footer */
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border-medium);
+  background: var(--bg-deep);
+  padding: var(--space-8) var(--space-6);
+}
+
+.footer-content {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.footer-left {
+  max-width: 440px;
+}
+
+.footer-brand {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.footer-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.footer-right {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.footer-meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-meta-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.footer-meta-val {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-lime);
+}

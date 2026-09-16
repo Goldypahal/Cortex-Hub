@@ -1,0 +1,278 @@
+/* ==========================================================================
+   AURA AI Platform - Customer Tenant Portal Stylesheet
+   Tactical Data Density, Precision API Key Controls, Quota Telemetry
+   ========================================================================== */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Tenant Profile Banner */
+.dashboard-banner {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.tenant-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.tenant-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--accent-lime);
+}
+
+.tenant-details h2 {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #FFF;
+}
+
+.tenant-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+/* KPI Cards Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-4);
+}
+
+.kpi-card {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--transition-fast);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
+}
+
+.kpi-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.kpi-value {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent-lime);
+  letter-spacing: -0.02em;
+}
+
+.kpi-trend {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Subpanel */
+.dashboard-subpanel {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-5);
+}
+
+.subpanel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.subpanel-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #FFF;
+}
+
+/* API Key Code Block */
+.api-key-code {
+  font-family: var(--font-mono);
+  background: var(--bg-deep);
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.78rem;
+}
+
+/* Progress Track */
+.usage-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+}
+
+.progress-track {
+  height: 6px;
+  background: var(--bg-surface-3);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent-lime);
+  border-radius: var(--radius-xs);
+  transition: width var(--transition-normal);
+}
+
+/* 7-Day Chart Visualizer */
+.chart-container {
+  height: 180px;
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.chart-bar-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 28px;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-medium);
+  border-bottom: none;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.chart-bar:hover {
+  background: var(--accent-lime);
+  border-color: var(--accent-lime);
+}
+
+.chart-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* Customization Pipeline Stepper */
+.request-pipeline-card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.pipeline-stepper {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.pipeline-stepper::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background: var(--border-medium);
+}
+
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.pipeline-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.pipeline-step.active .pipeline-dot {
+  background: var(--accent-lime);
+  border-color: var(--accent-lime);
+  color: #000;
+}
+
+.pipeline-step.done .pipeline-dot {
+  background: var(--status-live);
+  border-color: var(--status-live);
+  color: #000;
+}
+
+.pipeline-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.pipeline-step.active .pipeline-label {
+  color: var(--accent-lime);
+  font-weight: 700;
+}

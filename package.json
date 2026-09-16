@@ -1,0 +1,14 @@
+{
+  "name": "cortex-hub",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cortex Hub - Enterprise AI Component Store & Customization Platform",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y serve . -l 3000",
+    "start": "npx -y serve . -l 3000"
+  },
+  "keywords": ["ai", "marketplace", "rag", "customization", "saas"],
+  "author": "Platform Team",
+  "license": "MIT"
+}
