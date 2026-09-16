@@ -1,0 +1,173 @@
+// Cortex Hub - PostgreSQL Database Schema
+// Supported by Prisma ORM for PostgreSQL 18 & pgvector
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------
+// Multi-Tenant Isolation & Account Management (SRS Section 2.3 & 5.1)
+// --------------------------------------------------------------------------
+model Tenant {
+  id                    String                 @id @default(uuid())
+  slug                  String                 @unique
+  name                  String
+  tier                  String                 @default("ENTERPRISE TIER")
+  role                  String                 @default("ADMIN_SECURITY_OFFICER")
+  monthlyTokenQuota     BigInt                 @default(10000000)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  licenses              License[]
+  apiKeys               ApiKey[]
+  customizationRequests CustomizationRequest[]
+  supportTickets        SupportTicket[]
+  usageMetrics          UsageMetric[]
+
+  @@map("tenants")
+}
+
+// --------------------------------------------------------------------------
+// AI Component Catalog & Versioning (FR-1.1 - FR-1.6)
+// --------------------------------------------------------------------------
+model Component {
+  id               String                 @id
+  name             String
+  category         String
+  categoryBadge    String                 @default("badge-indigo")
+  version          String                 @default("v1.0.0")
+  shortDesc        String
+  longDesc         String
+  coreOutput       String
+  targetBuyer      String
+  basePrice        Int
+  priceFormatted   String
+  inrPriceFormatted String
+  tags             String[]
+  features         String[]
+  pricingTiers     Json                   // Array of tier configurations
+  architecture     Json                   // Step-by-step pipeline stages
+  codeSnippets     Json                   // Python, cURL, etc.
+  published        Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  licenses         License[]
+  customRequests   CustomizationRequest[]
+
+  @@map("components")
+}
+
+// --------------------------------------------------------------------------
+// Customization Requests & Architecture BOM (FR-3.1 - FR-3.8)
+// --------------------------------------------------------------------------
+model CustomizationRequest {
+  id               String    @id
+  tenantId         String
+  componentId      String
+  tenantName       String
+  componentName    String
+  scope            String
+  industry         String
+  deploymentTarget String
+  estimatedPrice   String
+  priceInr         String
+  targetDelivery   String
+  status           String    @default("Submitted") // Submitted, Under Review, Quoted, In Progress, Delivered
+  statusStep       Int       @default(1)
+  submittedDate    DateTime  @default(now())
+  timelineLog      Json      // Array of audit timeline records
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  component        Component @relation(fields: [componentId], references: [id])
+
+  @@map("customization_requests")
+}
+
+// --------------------------------------------------------------------------
+// Cryptographic Licensing & Entitlements (FR-4.1 - FR-4.8)
+// --------------------------------------------------------------------------
+model License {
+  id               String    @id @default(uuid())
+  tenantId         String
+  componentId      String
+  tier             String    // Starter, Advanced, Pro, Scale, Enterprise
+  licenseKey       String    @unique
+  status           String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  clusterTarget    String    @default("Dedicated VPC (AWS us-east-1)")
+  rateLimit        String    @default("1,000 req/min")
+  startDate        DateTime  @default(now())
+  renewalDate      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  component        Component @relation(fields: [componentId], references: [id])
+
+  @@map("licenses")
+}
+
+// --------------------------------------------------------------------------
+// API Key Secrets & Tenant Quotas (FR-5.3, FR-5.4)
+// --------------------------------------------------------------------------
+model ApiKey {
+  id               String    @id @default(uuid())
+  tenantId         String
+  name             String
+  prefix           String    // e.g. ctx_live_...
+  keyHash          String    // SHA-256 hash of secret key
+  status           String    @default("ACTIVE") // ACTIVE, REVOKED
+  environment      String    @default("Production")
+  monthlySpend     Float     @default(0.0)
+  lastUsed         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+// --------------------------------------------------------------------------
+// Support Tickets & SLA Management (FR-5.6, FR-6.7)
+// --------------------------------------------------------------------------
+model SupportTicket {
+  id               String    @id
+  tenantId         String
+  subject          String
+  priority         String    // LOW, MEDIUM, HIGH, CRITICAL
+  status           String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  lastActivity     String    @default("Just now")
+  messages         Json      // Array of message conversation threads
+  internalNotes    String?   // Visible only to Platform Admins
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("support_tickets")
+}
+
+// --------------------------------------------------------------------------
+// Tenant Usage Telemetry & Cost Ledger (FR-5.4)
+// --------------------------------------------------------------------------
+model UsageMetric {
+  id               String    @id @default(uuid())
+  tenantId         String
+  date             DateTime  @default(now())
+  calls            Int       @default(0)
+  tokens           BigInt    @default(0)
+  costUsd          Float     @default(0.0)
+  createdAt        DateTime  @default(now())
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("usage_metrics")
+}

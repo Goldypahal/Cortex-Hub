@@ -461,6 +461,15 @@ export class AdminView {
         event: `Admin updated status to "${newStatus}" with quote ${newPrice}. ${notes ? `(${notes})` : ""}`
       });
 
+      if (this.app && this.app.api) {
+        this.app.api.updateCustomizationRequest(request.id, {
+          status: newStatus,
+          statusStep: request.statusStep,
+          estimatedPrice: newPrice,
+          timelineEvent: `Admin updated status to "${newStatus}" with quote ${newPrice}. ${notes ? `(${notes})` : ""}`
+        });
+      }
+
       modal.classList.remove("active");
       showToast(`Request ${request.id} advanced to ${newStatus}!`, "success");
       const container = document.querySelector(".admin-container");

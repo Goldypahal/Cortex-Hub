@@ -10,11 +10,13 @@ import { CustomerView } from "./views/customer-view.js";
 import { AdminView } from "./views/admin-view.js";
 import { MOCK_CUSTOMIZATION_REQUESTS } from "./data/mock-dashboard.js";
 import { getIconSvg, showToast } from "./utils/helpers.js";
+import { apiClient } from "./services/api-client.js";
 
 class Application {
   constructor() {
     this.activeRoute = "marketplace";
     this.customizationRequests = [...MOCK_CUSTOMIZATION_REQUESTS];
+    this.api = apiClient;
 
     // Initialize View Controllers
     this.views = {
@@ -26,9 +28,27 @@ class Application {
     };
   }
 
-  init() {
+  async init() {
     this.attachNavEvents();
     this.renderCurrentView();
+    await this.syncDatabaseTelemetry();
+  }
+
+  async syncDatabaseTelemetry() {
+    try {
+      const health = await this.api.checkHealth();
+      const tickerTag = document.querySelector(".system-status-ticker .ticker-left .ticker-item");
+      if (tickerTag) {
+        if (health.status === "ONLINE") {
+          tickerTag.innerHTML = `SYS: <strong>ONLINE</strong> // POSTGRESQL 18 CONNECTED`;
+        } else {
+          tickerTag.innerHTML = `SYS: <strong>ONLINE</strong> // HYBRID LOCAL PERSISTENCE`;
+        }
+      }
+      this.customizationRequests = await this.api.getCustomizationRequests();
+    } catch {
+      // Keep default
+    }
   }
 
   attachNavEvents() {
@@ -105,11 +125,17 @@ class Application {
 
   // Customization Request Store Methods
   getCustomizationRequests() {
-    return this.customizationRequests;
+    return this.api ? this.api.memoryRequests : this.customizationRequests;
   }
 
-  addCustomizationRequest(req) {
+  async addCustomizationRequest(req) {
+    if (this.api) {
+      const saved = await this.api.submitCustomizationRequest(req);
+      this.customizationRequests = this.api.memoryRequests;
+      return saved;
+    }
     this.customizationRequests.unshift(req);
+    return req;
   }
 
   // Checkout & Licensing Flow Modal (FR-4.1 - FR-4.8)
@@ -183,8 +209,13 @@ class Application {
       btn.addEventListener("click", () => modal.classList.remove("active"));
     });
 
-    modal.querySelector("#btn-complete-checkout").addEventListener("click", () => {
-      const generatedLicenseKey = `LIC-${item.componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    modal.querySelector("#btn-complete-checkout").addEventListener("click", async () => {
+      let provisionedKey = null;
+      if (this.api) {
+        const lic = await this.api.checkoutLicense(item.componentId, item.tier);
+        provisionedKey = lic ? lic.licenseKey : null;
+      }
+      const generatedLicenseKey = provisionedKey || `LIC-${item.componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
       modal.innerHTML = `
         <div class="modal-dialog" style="text-align: center; max-width: 500px;">

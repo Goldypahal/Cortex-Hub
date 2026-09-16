@@ -6,9 +6,25 @@
   "main": "index.html",
   "scripts": {
     "dev": "npx -y serve . -l 3000",
-    "start": "npx -y serve . -l 3000"
+    "start": "npx -y serve . -l 3000",
+    "server": "node server/server.js",
+    "fullstack": "concurrently \"npm run server\" \"npm run dev\"",
+    "db:generate": "prisma generate --schema=server/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=server/prisma/schema.prisma",
+    "db:seed": "node server/prisma/seed.js",
+    "db:studio": "prisma studio --schema=server/prisma/schema.prisma"
   },
-  "keywords": ["ai", "marketplace", "rag", "customization", "saas"],
+  "dependencies": {
+    "@prisma/client": "^6.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prisma": "^6.4.1"
+  },
+  "keywords": ["ai", "marketplace", "rag", "customization", "saas", "postgresql", "prisma"],
   "author": "Platform Team",
   "license": "MIT"
 }

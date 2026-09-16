@@ -102,16 +102,19 @@ The platform is structured across three core planes:
 
 ## 🛠️ Tech Stack
 
+* **Database & ORM:** PostgreSQL 18, Prisma ORM (`@prisma/client`), pgvector ready.
+* **Backend:** Node.js, Express REST API, CORS, Dotenv.
 * **Frontend:** Vanilla HTML5, Modern Modular JavaScript (ES Modules), Custom Vanilla CSS (Design tokens, Bricolage Grotesque, Space Grotesk, JetBrains Mono).
-* **Styling Principles:** Strict precision dark-mode design system, tactical data density, no generic framework overhead.
-* **Architecture:** Component-driven MVC pattern (`js/views/`, `js/data/`, `js/utils/`).
+* **Styling Principles:** Strict precision dark-mode design system, tactical data density, zero framework bloat.
+* **Architecture:** Component-driven MVC pattern (`js/views/`, `js/data/`, `js/utils/`, `server/`).
 
 ---
 
 ## 💻 Local Development
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (v16 or higher)
+* [Node.js](https://nodejs.org/) (v18 or higher)
+* [PostgreSQL](https://www.postgresql.org/) (Local instance or cloud provider like Supabase/Neon)
 
 ### Installation & Run
 
@@ -121,12 +124,37 @@ The platform is structured across three core planes:
    cd Cortex-Hub
    ```
 
-2. Start the local development server:
+2. Install dependencies:
    ```bash
-   npm run dev
+   npm install
    ```
 
-3. Open your browser and navigate to:
+3. Configure Environment Variables:
+   Copy `.env.example` to `.env` and set your PostgreSQL connection string:
+   ```bash
+   DATABASE_URL="postgresql://postgres:<password>@localhost:5432/cortex_hub"
+   ```
+
+4. Push Schema & Seed PostgreSQL Database:
+   ```bash
+   # Push schema models (Tenants, Components, Licenses, Requests, Tickets, Keys)
+   npm run db:push
+
+   # Seed database with 10 production AI engines and default tenant
+   npm run db:seed
+   ```
+
+5. Start the Fullstack Application:
+   ```bash
+   # Runs both Express API (:5000) and Frontend (:3000) concurrently
+   npm run fullstack
+   ```
+
+   Or run them individually:
+   * Backend REST API: `npm run server`
+   * Frontend Client: `npm run dev`
+
+6. Open your browser and navigate to:
    ```
    http://localhost:3000
    ```
