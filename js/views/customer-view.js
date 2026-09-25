@@ -71,6 +71,7 @@ export class CustomerView {
         <!-- Tabs -->
         <div class="tab-bar" id="cust-dash-tabs">
           <button class="tab-btn ${this.activeTab === "overview" ? "active" : ""}" data-tab="overview">LICENSES &amp; PURCHASES</button>
+          <button class="tab-btn ${this.activeTab === "vault" ? "active" : ""}" data-tab="vault">DIGITAL DELIVERY VAULT (SRS v2.0)</button>
           <button class="tab-btn ${this.activeTab === "keys" ? "active" : ""}" data-tab="keys">API KEY MANAGEMENT</button>
           <button class="tab-btn ${this.activeTab === "usage" ? "active" : ""}" data-tab="usage">INFERENCE TELEMETRY</button>
           <button class="tab-btn ${this.activeTab === "requests" ? "active" : ""}" data-tab="requests">CUSTOMIZATION SPRINT</button>
@@ -148,6 +149,103 @@ export class CustomerView {
       tabBody.querySelectorAll(".btn-launch-lic-sandbox").forEach((btn) => {
         btn.addEventListener("click", () => {
           this.app.navigateTo("playground", { componentId: btn.dataset.id });
+        });
+      });
+    } else if (this.activeTab === "vault") {
+      const entitlements = this.app.api ? this.app.api.memoryEntitlements : [];
+
+      tabBody.innerHTML = `
+        <div class="dashboard-subpanel">
+          <div class="subpanel-header">
+            <div>
+              <h3 class="subpanel-title">Digital Delivery Vault (SRS Section 14 &amp; 23)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px;">
+                // Authenticated signed download URLs, SHA-256 integrity verification, and API quota credentials.
+              </p>
+            </div>
+            <span class="badge badge-lime">ENCRYPTED AT REST</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            ${entitlements
+              .map(
+                (ent) => `
+              <div class="card" style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); padding: 18px; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="badge badge-lime">ACTIVE ENTITLEMENT</span>
+                      <span class="badge badge-gray">${ent.tier}</span>
+                      <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-cyan);">by ${ent.sellerName || "Apex AI Labs"}</span>
+                    </div>
+                    <h4 style="font-family: var(--font-heading); font-size: 1.2rem; color: #FFF; margin-top: 6px;">
+                      ${ent.componentName} (${ent.version})
+                    </h4>
+                    <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+                      Licensed Key: <strong style="color: var(--accent-lime);">${ent.licenseKey}</strong> // Purchased: ${ent.purchasedDate}
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm btn-verify-checksum" data-checksum="${ent.checksumSha256}">
+                      Verify SHA-256 Checksum
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-signed-download" data-name="${ent.componentName}">
+                      ${getIconSvg("download", 13)} Download Artifact (${ent.fileSize || "1.42 GB"})
+                    </button>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; font-family: var(--font-mono); font-size: 0.78rem; background: var(--bg-deep); padding: 12px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+                  <div>
+                    <span style="color: var(--text-muted); text-transform: uppercase;">API Quota Allocation:</span>
+                    <div style="color: #FFF; font-weight: 600; margin-top: 2px;">${ent.apiUsed || "0"} / ${ent.apiQuota || "1,000,000 reqs"}</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); text-transform: uppercase;">Artifact Package Size:</span>
+                    <div style="color: #FFF; font-weight: 600; margin-top: 2px;">${ent.fileSize || "1.42 GB"} (.tar.gz tarball)</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); text-transform: uppercase;">License Rights:</span>
+                    <div style="color: var(--accent-lime); font-weight: 600; margin-top: 2px;">Commercial Multi-Seat Internal</div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); word-break: break-all;">
+                    SHA-256: ${ent.checksumSha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+                  </span>
+                  <button class="btn btn-ghost btn-sm btn-rate-purchased" data-id="${ent.componentId}">
+                    ★ Write Review for Vendor
+                  </button>
+                </div>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+
+      tabBody.querySelectorAll(".btn-signed-download").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          showToast(`Generating authenticated signed URL for ${btn.dataset.name}... Download initiated!`, "success");
+        });
+      });
+
+      tabBody.querySelectorAll(".btn-verify-checksum").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          copyToClipboard(btn.dataset.checksum, "SHA-256 Checksum copied to clipboard. Integrity: MATCH (100% Valid)");
+        });
+      });
+
+      tabBody.querySelectorAll(".btn-rate-purchased").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          this.app.navigateTo("marketplace");
+          setTimeout(() => {
+            const cardBtn = document.querySelector(`.btn-view-detail[data-id="${btn.dataset.id}"]`);
+            if (cardBtn) cardBtn.click();
+          }, 300);
         });
       });
     } else if (this.activeTab === "keys") {

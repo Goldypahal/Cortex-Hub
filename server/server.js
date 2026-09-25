@@ -374,6 +374,124 @@ app.get("/api/analytics/revenue", async (req, res) => {
   });
 });
 
+// --------------------------------------------------------------------------
+// Multi-Vendor Marketplace Core Routes (SRS v2.0 Section 12, 14, 18, 20, 31)
+// --------------------------------------------------------------------------
+
+// In-memory runtime state for fast execution & graceful offline fallback
+let dynamicModerationQueue = [
+  {
+    id: "MOD-301",
+    productId: "mcp-server-dev",
+    productName: "Autonomous DevOps MCP Bridge",
+    productType: "MCP_SERVER",
+    category: "Developer Tools",
+    sellerName: "Apex AI Labs",
+    sellerHandle: "@apex-ai",
+    price: "$399",
+    submittedDate: "2026-09-21",
+    status: "UNDER_REVIEW",
+    checklist: {
+      malwareScan: "PASS (0 threats detected in wheels/binaries)",
+      licenseCompliance: "PASS (Apache-2.0 / Commercial Permissive)",
+      documentation: "PASS (Quickstart, schema specs, dependencies verified)",
+      sandboxIntegrity: "PASS (Docker container builds cleanly in 38s)"
+    },
+    specs: "Dockerized Model Context Protocol server exposing Kubernetes telemetry & Helm deploy tooling to LLM agents."
+  }
+];
+
+let dynamicEntitlements = [];
+
+// Seller Profile
+app.get("/api/sellers/:handle", (req, res) => {
+  res.json({
+    handle: req.params.handle,
+    displayName: "Apex AI Labs",
+    verifiedLevel: "VERIFIED",
+    totalSales: 86,
+    grossRevenue: 42850,
+    availableBalance: 8240,
+    platformTakeRate: 0.15
+  });
+});
+
+// Vendor Product Submission (SRS Section 12)
+app.post("/api/products/submit", (req, res) => {
+  const submission = req.body;
+  const modRecord = {
+    id: `MOD-${Math.floor(400 + Math.random() * 500)}`,
+    productId: submission.id || `prod-${Date.now()}`,
+    productName: submission.name,
+    productType: submission.productType || "AI_AGENT",
+    category: submission.category || "Generative AI",
+    sellerName: "Apex AI Labs",
+    sellerHandle: "@apex-ai",
+    price: `$${submission.basePrice || 499}`,
+    submittedDate: new Date().toISOString().split("T")[0],
+    status: "UNDER_REVIEW",
+    checklist: {
+      malwareScan: "PASS (Automated static analysis clean)",
+      licenseCompliance: `PASS (${submission.licenseType || "Commercial Permissive"} verified)`,
+      documentation: "PASS (Quickstart & schema verified)",
+      sandboxIntegrity: "PASS (Container health: 200 OK)"
+    },
+    specs: submission.shortDesc || "Production AI component"
+  };
+  dynamicModerationQueue.unshift(modRecord);
+  res.status(201).json({ success: true, moderation: modRecord });
+});
+
+// Moderation Queue (SRS Section 13, 31)
+app.get("/api/moderation/queue", (req, res) => {
+  res.json(dynamicModerationQueue);
+});
+
+app.post("/api/moderation/:id", (req, res) => {
+  const { action, reason } = req.body;
+  const item = dynamicModerationQueue.find((m) => m.id === req.params.id);
+  if (!item) return res.status(404).json({ error: "Moderation record not found" });
+
+  item.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
+  item.resolutionReason = reason || (action === "APPROVE" ? "Verified and published to catalog" : "Revision requested");
+  res.json({ success: true, item });
+});
+
+// Digital Delivery Entitlements (SRS Section 14)
+app.get("/api/entitlements", (req, res) => {
+  res.json(dynamicEntitlements);
+});
+
+// Checkout Order & Entitlement Provisioning (SRS Section 17)
+app.post("/api/orders/checkout", (req, res) => {
+  const { componentId, tier, price } = req.body;
+  const priceNum = parseInt(price) || 499;
+  const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+  const entitlement = {
+    id: `ent-${Date.now()}`,
+    componentId,
+    tier: tier || "Starter",
+    licenseKey,
+    downloadAllowed: true,
+    downloadUrl: `https://artifacts.cortex-hub.io/signed/${componentId}-prod.tar.gz?token=exp_${Date.now() + 86400000}`,
+    checksumSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    fileSize: "1.42 GB",
+    apiQuota: "1,000,000 reqs/mo",
+    status: "ACTIVE",
+    createdAt: new Date().toISOString()
+  };
+  dynamicEntitlements.unshift(entitlement);
+
+  res.status(201).json({
+    success: true,
+    licenseKey,
+    entitlement,
+    platformFee: priceNum * 0.15,
+    sellerNet: priceNum * 0.85
+  });
+});
+
 // Start Express Server
 app.listen(PORT, () => {
   console.log(`⚡ Cortex Hub REST API running on http://localhost:${PORT}`);

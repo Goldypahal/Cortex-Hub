@@ -8,6 +8,7 @@ import { PlaygroundView } from "./views/playground-view.js";
 import { ConfiguratorView } from "./views/configurator-view.js";
 import { CustomerView } from "./views/customer-view.js";
 import { AdminView } from "./views/admin-view.js";
+import { SellerView } from "./views/seller-view.js";
 import { MOCK_CUSTOMIZATION_REQUESTS } from "./data/mock-dashboard.js";
 import { getIconSvg, showToast } from "./utils/helpers.js";
 import { apiClient } from "./services/api-client.js";
@@ -23,6 +24,7 @@ class Application {
       marketplace: new MarketplaceView(this),
       playground: new PlaygroundView(this),
       configurator: new ConfiguratorView(this),
+      seller: new SellerView(this),
       customer: new CustomerView(this),
       admin: new AdminView(this)
     };
@@ -75,6 +77,9 @@ class Application {
         if (role === "admin") {
           this.navigateTo("admin");
           showToast("Switched perspective to Platform Administrator", "info");
+        } else if (role === "seller") {
+          this.navigateTo("seller");
+          showToast("Switched perspective to Multi-Vendor Seller (Apex AI Labs)", "info");
         } else if (role === "customer") {
           this.navigateTo("customer");
           showToast("Switched perspective to Registered Customer (Acme Health)", "info");
@@ -233,17 +238,24 @@ class Application {
                 ${generatedLicenseKey}
               </div>
             </div>
-            <div style="display: flex; justify-content: center; gap: 10px;">
+            <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" id="btn-dl-artifact-checkout">
+                ${getIconSvg("download", 13)} Signed Artifact (.tar.gz)
+              </button>
               <button class="btn btn-secondary btn-sm" id="btn-dl-invoice-checkout">
-                ${getIconSvg("download", 13)} Download Invoice PDF (FR-4.4)
+                ${getIconSvg("download", 13)} Invoice PDF (FR-4.4)
               </button>
               <button class="btn btn-primary btn-sm" id="btn-go-to-portal">
-                Go to Customer Portal
+                Digital Delivery Vault →
               </button>
             </div>
           </div>
         </div>
       `;
+
+      modal.querySelector("#btn-dl-artifact-checkout").addEventListener("click", () => {
+        showToast(`Authenticated signed artifact download initiated! (SHA-256 Verified)`, "success");
+      });
 
       modal.querySelector("#btn-dl-invoice-checkout").addEventListener("click", () => {
         showToast("Invoice PDF generated and downloaded!", "success");
@@ -252,6 +264,12 @@ class Application {
       modal.querySelector("#btn-go-to-portal").addEventListener("click", () => {
         modal.classList.remove("active");
         this.navigateTo("customer");
+        // Switch customer view to the vault tab
+        if (this.views.customer) {
+          this.views.customer.activeTab = "vault";
+          const custContainer = document.getElementById("view-customer");
+          if (custContainer) this.views.customer.render(custContainer);
+        }
       });
     });
   }

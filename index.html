@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="./css/configurator.css" />
   <link rel="stylesheet" href="./css/dashboard.css" />
   <link rel="stylesheet" href="./css/admin.css" />
+  <link rel="stylesheet" href="./css/seller.css" />
 </head>
 <body>
   <!-- Precision Engineering Grid Background Pattern -->
@@ -72,13 +73,17 @@
           <span class="nav-index">03</span>
           <span>Configurator</span>
         </button>
-        <button class="nav-link" data-route="customer" id="nav-customer">
+        <button class="nav-link" data-route="seller" id="nav-seller">
           <span class="nav-index">04</span>
-          <span>Tenant Portal</span>
+          <span>Seller Studio</span>
+        </button>
+        <button class="nav-link" data-route="customer" id="nav-customer">
+          <span class="nav-index">05</span>
+          <span>Buyer Portal</span>
         </button>
         <button class="nav-link" data-route="admin" id="nav-admin">
-          <span class="nav-index">05</span>
-          <span>Admin Operations</span>
+          <span class="nav-index">06</span>
+          <span>Admin Governance</span>
         </button>
       </nav>
 
@@ -88,7 +93,8 @@
           <span class="role-label">VIEW CONTEXT:</span>
           <select id="header-role-select" class="role-select">
             <option value="visitor" selected>Visitor (Anonymous)</option>
-            <option value="customer">Acme Health (Customer)</option>
+            <option value="customer">Acme Health (Enterprise Buyer)</option>
+            <option value="seller">Apex AI Labs (Multi-Vendor Seller)</option>
             <option value="admin">Platform Operator (Admin)</option>
           </select>
         </div>
@@ -100,6 +106,7 @@
       <div id="view-marketplace" class="view-section active"></div>
       <div id="view-playground" class="view-section"></div>
       <div id="view-configurator" class="view-section"></div>
+      <div id="view-seller" class="view-section"></div>
       <div id="view-customer" class="view-section"></div>
       <div id="view-admin" class="view-section"></div>
     </main>

@@ -1,7 +1,7 @@
 /**
- * AURA AI Platform
- * Admin Operations & Kanban Management View Controller
- * Tactical Kanban Board, Scope Review Drawer, Deployment Telemetry
+ * Cortex Hub - Admin Operations & Moderation View Controller
+ * Implements SRS v2.0 Section 13 (Verification), Section 19 (Commission),
+ * Section 31 (Admin System), and Section 63 (Acceptance Criteria).
  */
 
 import { CATALOG_COMPONENTS } from "../data/catalog-data.js";
@@ -11,22 +11,23 @@ import { getIconSvg, showToast } from "../utils/helpers.js";
 export class AdminView {
   constructor(app) {
     this.app = app;
-    this.activeTab = "kanban";
+    this.activeTab = "moderation"; // Default to Moderation Queue in SRS v2.0
     this.currentRole = "Platform Admin";
     this.deployments = [...MOCK_ADMIN_DEPLOYMENTS];
     this.components = [...CATALOG_COMPONENTS];
   }
 
-  render(container) {
+  async render(container) {
+    const queue = await this.app.api.getModerationQueue();
+    const pendingCount = queue.filter((m) => m.status === "UNDER_REVIEW").length;
+
     container.innerHTML = `
       <div class="admin-container">
         <!-- Banner -->
         <div class="admin-banner">
           <div class="admin-banner-info">
-            <h2>
-              PLATFORM OPERATIONS DESK
-            </h2>
-            <p class="admin-subtext">// Catalog parameters, Customization Kanban, revenue BI, and multi-cluster health.</p>
+            <h2>PLATFORM GOVERNANCE &amp; OPERATIONS</h2>
+            <p class="admin-subtext">// Multi-vendor product moderation, platform take-rate settings, Customization Kanban, and cluster health.</p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -34,7 +35,7 @@ export class AdminView {
               <span class="role-label">RBAC:</span>
               <select id="admin-role-select" class="role-select">
                 <option value="Platform Admin" ${this.currentRole === "Platform Admin" ? "selected" : ""}>Platform Admin</option>
-                <option value="Support Agent" ${this.currentRole === "Support Agent" ? "selected" : ""}>Support Agent</option>
+                <option value="Moderator" ${this.currentRole === "Moderator" ? "selected" : ""}>Component Moderator</option>
                 <option value="Billing Admin" ${this.currentRole === "Billing Admin" ? "selected" : ""}>Billing Admin</option>
               </select>
             </div>
@@ -44,25 +45,126 @@ export class AdminView {
 
         <!-- Navigation Tabs -->
         <div class="tab-bar" id="admin-dash-tabs">
-          <button class="tab-btn ${this.activeTab === "kanban" ? "active" : ""}" data-tab="kanban">CUSTOMIZATION KANBAN</button>
-          <button class="tab-btn ${this.activeTab === "catalog" ? "active" : ""}" data-tab="catalog">CATALOG CRUD</button>
-          <button class="tab-btn ${this.activeTab === "revenue" ? "active" : ""}" data-tab="revenue">REVENUE BI</button>
-          <button class="tab-btn ${this.activeTab === "deployments" ? "active" : ""}" data-tab="deployments">DEPLOYMENT MATRIX</button>
+          <button class="tab-btn ${this.activeTab === "moderation" ? "active" : ""}" data-tab="moderation">
+            MODERATION QUEUE [${pendingCount}]
+          </button>
+          <button class="tab-btn ${this.activeTab === "kanban" ? "active" : ""}" data-tab="kanban">
+            CUSTOMIZATION KANBAN
+          </button>
+          <button class="tab-btn ${this.activeTab === "catalog" ? "active" : ""}" data-tab="catalog">
+            CATALOG CRUD
+          </button>
+          <button class="tab-btn ${this.activeTab === "revenue" ? "active" : ""}" data-tab="revenue">
+            PLATFORM FINANCIALS &amp; COMMISSIONS
+          </button>
+          <button class="tab-btn ${this.activeTab === "deployments" ? "active" : ""}" data-tab="deployments">
+            DEPLOYMENT MATRIX
+          </button>
         </div>
 
         <div id="admin-tab-body"></div>
       </div>
     `;
 
-    this.renderTabContent(container);
+    await this.renderTabContent(container);
     this.attachEvents(container);
   }
 
-  renderTabContent(container) {
+  async renderTabContent(container) {
     const body = container.querySelector("#admin-tab-body");
     if (!body) return;
 
-    if (this.activeTab === "kanban") {
+    if (this.activeTab === "moderation") {
+      const queue = await this.app.api.getModerationQueue();
+
+      body.innerHTML = `
+        <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary);">
+            // SRS v2.0 Section 13 &amp; 31: Verify technical specs, integrity checksums, and approve/reject seller submissions.
+          </p>
+          <span class="badge badge-lime">${queue.length} Total Submissions</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          ${queue
+            .map(
+              (m) => `
+            <div class="moderation-card" style="background: var(--bg-surface-2); border: 1px solid ${m.status === "APPROVED" ? "var(--accent-lime)" : m.status === "REJECTED" ? "var(--status-error)" : "var(--border-medium)"}; border-radius: 8px; padding: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge ${m.status === "APPROVED" ? "badge-lime" : m.status === "REJECTED" ? "badge-gray" : "badge-amber"}">
+                      ● ${m.status}
+                    </span>
+                    <span class="badge badge-indigo">${m.productType || "AI_AGENT"}</span>
+                    <span class="badge badge-gray">${m.category}</span>
+                  </div>
+                  <h4 style="font-family: var(--font-heading); font-size: 1.2rem; color: #FFF; margin-top: 6px;">
+                    ${m.productName}
+                  </h4>
+                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                    Submitted by <strong style="color: var(--accent-cyan);">${m.sellerName}</strong> (${m.sellerHandle}) on ${m.submittedDate} // Proposed Price: <strong style="color: var(--accent-lime);">${m.price}</strong>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                  ${
+                    m.status === "UNDER_REVIEW"
+                      ? `
+                    <button class="btn btn-secondary btn-sm btn-reject-mod" data-id="${m.id}">
+                      Reject / Request Revision
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-approve-mod" data-id="${m.id}" style="background: var(--accent-lime); color: #000;">
+                      ${getIconSvg("check", 13)} Approve &amp; Publish
+                    </button>
+                  `
+                      : `<span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">Decision finalized: ${m.resolutionReason || m.status}</span>`
+                  }
+                </div>
+              </div>
+
+              <p style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
+                ${m.specs}
+              </p>
+
+              <!-- Technical Verification Checklist (SRS Section 13) -->
+              <div style="background: var(--bg-deep); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px;">
+                <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+                  Automated Pre-Flight Verification Checklist:
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.78rem;">
+                  <div style="color: var(--accent-lime);">✓ Malware &amp; Wheel Check: ${m.checklist ? m.checklist.malwareScan : "PASS"}</div>
+                  <div style="color: var(--accent-lime);">✓ License Compliance: ${m.checklist ? m.checklist.licenseCompliance : "PASS"}</div>
+                  <div style="color: var(--accent-lime);">✓ Docs &amp; Quickstart: ${m.checklist ? m.checklist.documentation : "PASS"}</div>
+                  <div style="color: var(--accent-lime);">✓ Sandbox Execution: ${m.checklist ? m.checklist.sandboxIntegrity : "PASS"}</div>
+                </div>
+              </div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+      `;
+
+      body.querySelectorAll(".btn-approve-mod").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          await this.app.api.moderateProduct(btn.dataset.id, "APPROVE");
+          showToast("Component approved and published live to Cortex Hub catalog!", "success");
+          this.renderTabContent(container);
+        });
+      });
+
+      body.querySelectorAll(".btn-reject-mod").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const reason = prompt("Enter revision feedback for seller:", "Please expand hardware benchmark results and provide Dockerfile.");
+          if (reason) {
+            await this.app.api.moderateProduct(btn.dataset.id, "REJECT", reason);
+            showToast("Component rejected and feedback sent to seller.", "info");
+            this.renderTabContent(container);
+          }
+        });
+      });
+    } else if (this.activeTab === "kanban") {
       const requests = this.app.getCustomizationRequests();
 
       const columns = [
@@ -100,26 +202,20 @@ export class AdminView {
                   <span class="col-count-badge">[${col.count}]</span>
                 </span>
               </div>
-              <div class="kanban-cards-list">
+              <div class="kanban-cards-stack">
                 ${col.cards
                   .map(
                     (card) => `
-                  <div class="kanban-card" data-req-id="${card.id}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <span class="k-card-component">${card.componentName}</span>
-                      <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);">${card.id}</span>
+                  <div class="kanban-card" data-id="${card.id}">
+                    <div class="kanban-card-top">
+                      <span class="card-id">${card.id}</span>
+                      <span class="badge badge-gray" style="font-size: 0.65rem;">${card.industry || "General"}</span>
                     </div>
-                    <div class="k-card-tenant">${card.tenantName}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3;">
-                      ${card.scope}
-                    </div>
-                    <div class="k-card-tags">
-                      <span class="tech-tag">${card.industry}</span>
-                      <span class="tech-tag">${card.deploymentTarget}</span>
-                    </div>
-                    <div class="k-card-footer">
-                      <span class="k-card-price">${card.estimatedPrice}</span>
-                      <span>${card.targetDelivery}</span>
+                    <h4 class="card-title">${card.tenantName}</h4>
+                    <p class="card-desc">${card.scope}</p>
+                    <div class="card-meta-row">
+                      <span class="card-price">${card.estimatedPrice}</span>
+                      <span class="card-target">${card.deploymentTarget || "Dedicated AWS"}</span>
                     </div>
                   </div>
                 `
@@ -131,27 +227,22 @@ export class AdminView {
             )
             .join("")}
         </div>
+
+        <!-- Scope Review Drawer -->
+        <div id="scope-review-drawer" class="scope-drawer"></div>
       `;
 
-      body.querySelectorAll(".kanban-card").forEach((cardEl) => {
-        cardEl.addEventListener("click", () => {
-          const req = requests.find((r) => r.id === cardEl.dataset.reqId);
-          if (req) this.openScopeReviewDrawer(req);
-        });
-      });
+      this.attachKanbanEvents(body);
     } else if (this.activeTab === "catalog") {
       body.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
             <div>
-              <h3 class="subpanel-title">Component Catalog Specification Management (FR-6.2)</h3>
+              <h3 class="subpanel-title">Component Catalog Parameter Controls (FR-6.2)</h3>
               <p style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">
-                // Manage pricing tiers, model versions, and production visibility.
+                // Dynamically modify production base prices, publication state, and vendor attribution.
               </p>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-add-component-catalog">
-              + Add Component
-            </button>
           </div>
 
           <div class="table-responsive">
@@ -160,10 +251,11 @@ export class AdminView {
                 <tr>
                   <th>Component Name</th>
                   <th>Category</th>
-                  <th>Version</th>
-                  <th>Base License</th>
+                  <th>Type</th>
+                  <th>Vendor</th>
+                  <th>Base USD Price</th>
                   <th>State</th>
-                  <th style="text-align: right;">Action</th>
+                  <th style="text-align: right;">Operations</th>
                 </tr>
               </thead>
               <tbody>
@@ -173,12 +265,13 @@ export class AdminView {
                   <tr>
                     <td style="font-family: var(--font-heading); font-weight: 700; color: #FFF;">${c.name}</td>
                     <td><span class="badge badge-gray">${c.category}</span></td>
-                    <td><code class="api-key-code">${c.version}</code></td>
+                    <td><span class="badge badge-indigo">${c.productType || "AI_AGENT"}</span></td>
+                    <td style="color: var(--accent-cyan); font-size: 0.8rem;">${c.sellerName || "Apex AI Labs"}</td>
                     <td style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-lime);">${c.priceFormatted}</td>
-                    <td><span class="badge badge-emerald">PUBLISHED</span></td>
+                    <td><span class="badge badge-lime">PUBLISHED</span></td>
                     <td style="text-align: right;">
-                      <button class="btn btn-outline btn-sm btn-edit-comp" data-id="${c.id}">
-                        Edit Base Fee
+                      <button class="btn btn-outline btn-sm btn-edit-price" data-id="${c.id}">
+                        Adjust Price
                       </button>
                     </td>
                   </tr>
@@ -191,11 +284,7 @@ export class AdminView {
         </div>
       `;
 
-      body.querySelector("#btn-add-component-catalog").addEventListener("click", () => {
-        showToast("New component authoring dialog launched.", "info");
-      });
-
-      body.querySelectorAll(".btn-edit-comp").forEach((btn) => {
+      body.querySelectorAll(".btn-edit-price").forEach((btn) => {
         btn.addEventListener("click", () => {
           const c = this.components.find((comp) => comp.id === btn.dataset.id);
           const newPrice = prompt(`Enter new base price for ${c.name}:`, c.basePrice);
@@ -212,57 +301,62 @@ export class AdminView {
       body.innerHTML = `
         <div class="revenue-grid">
           <div class="revenue-card">
-            <div class="rev-label">Monthly Recurring Revenue</div>
-            <div class="rev-val" style="color: var(--accent-lime);">$42,850</div>
-            <div class="rev-sub">+14.2% vs last cycle</div>
+            <div class="rev-label">Platform Gross Merchandise Volume (GMV)</div>
+            <div class="rev-val" style="color: var(--accent-lime);">$148,250</div>
+            <div class="rev-sub">+24.2% MoM transaction volume</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Annualized Run Rate (ARR)</div>
-            <div class="rev-val">$514,200</div>
-            <div class="rev-sub">+18.5% YoY projection</div>
+            <div class="rev-label">Platform Commission Retained (15%)</div>
+            <div class="rev-val" style="color: var(--accent-amber);">$22,237.50</div>
+            <div class="rev-sub">Configurable take-rate fee</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Gross Revenue Churn</div>
-            <div class="rev-val">1.18%</div>
-            <div class="rev-sub" style="color: var(--signal-cyan);">Sovereign SaaS benchmark</div>
+            <div class="rev-label">Disbursed Seller Payouts</div>
+            <div class="rev-val">$126,012.50</div>
+            <div class="rev-sub" style="color: var(--signal-cyan);">85% paid to developers</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Active Paying Tenant Orgs</div>
-            <div class="rev-val">128 Orgs</div>
-            <div class="rev-sub">+9 this sprint</div>
+            <div class="rev-label">Active Multi-Vendor Sellers</div>
+            <div class="rev-val">42 Verified</div>
+            <div class="rev-sub">+6 verified this cycle</div>
           </div>
         </div>
 
-        <div class="dashboard-subpanel">
-          <h3 class="subpanel-title" style="margin-bottom: 14px;">Revenue Stream Distribution (FR-6.5 / Section 8.1)</h3>
-          
-          <div style="display: flex; flex-direction: column; gap: 14px;">
-            <div>
-              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 4px;">
-                <span>1. Base Component Licenses</span>
-                <strong>45% ($19,282 / mo)</strong>
-              </div>
-              <div class="progress-track"><div class="progress-bar-fill" style="width: 45%; background: var(--accent-lime);"></div></div>
-            </div>
+        <!-- Platform Commission Configuration (SRS Section 19) -->
+        <div class="dashboard-subpanel" style="margin-top: 20px;">
+          <h3 class="subpanel-title" style="margin-bottom: 8px;">Platform Commission &amp; Take-Rate Architecture (SRS Section 19)</h3>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 16px;">
+            The take-rate is configurable by Platform Admin rather than hardcoded. Applied at transaction clearance.
+          </p>
 
-            <div>
-              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 4px;">
-                <span>2. Customization &amp; VPC Integration Packages</span>
-                <strong>38% ($16,283 / mo)</strong>
-              </div>
-              <div class="progress-track"><div class="progress-bar-fill" style="width: 38%; background: var(--signal-cyan);"></div></div>
+          <div style="display: flex; align-items: center; gap: 16px; background: var(--bg-deep); padding: 16px; border-radius: 6px; border: 1px solid var(--border-medium);">
+            <div style="flex: 1;">
+              <label class="form-label">Platform Take-Rate Percentage</label>
+              <input type="range" min="5" max="30" value="15" id="commission-slider" style="width: 100%; accent-color: var(--accent-lime);" />
             </div>
-
-            <div>
-              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 4px;">
-                <span>3. Monthly Maintenance &amp; Sovereign SLAs</span>
-                <strong>17% ($7,285 / mo)</strong>
-              </div>
-              <div class="progress-track"><div class="progress-bar-fill" style="width: 17%; background: var(--status-live);"></div></div>
+            <div style="width: 120px; text-align: center;">
+              <span id="commission-display" style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent-lime);">15%</span>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">Standard Tier</div>
             </div>
+            <button class="btn btn-primary btn-sm" id="btn-save-commission">Update Take-Rate</button>
           </div>
         </div>
       `;
+
+      const slider = body.querySelector("#commission-slider");
+      const display = body.querySelector("#commission-display");
+      if (slider && display) {
+        slider.addEventListener("input", (e) => {
+          display.textContent = `${e.target.value}%`;
+        });
+      }
+      const saveBtn = body.querySelector("#btn-save-commission");
+      if (saveBtn && slider) {
+        saveBtn.addEventListener("click", () => {
+          this.app.api.platformCommissionRate = parseInt(slider.value) / 100;
+          showToast(`Platform commission rate updated to ${slider.value}%!`, "success");
+        });
+      }
     } else if (this.activeTab === "deployments") {
       body.innerHTML = `
         <div class="dashboard-subpanel">
@@ -327,153 +421,113 @@ export class AdminView {
         </div>
       `;
 
-      body.querySelector("#btn-ping-all-nodes").addEventListener("click", () => {
-        showToast("Health beacons received from all 4 clusters. Latency nominal.", "success");
-      });
-
       body.querySelectorAll(".btn-ping-node").forEach((btn) => {
         btn.addEventListener("click", () => {
-          showToast(`Cluster heartbeat for ${btn.dataset.tenant} responded in 24ms`, "success");
+          btn.textContent = "Pinging...";
+          setTimeout(() => {
+            btn.textContent = "24ms OK";
+            showToast(`Heartbeat verified for ${btn.dataset.tenant}`, "success");
+          }, 400);
         });
       });
+
+      const pingAllBtn = body.querySelector("#btn-ping-all-nodes");
+      if (pingAllBtn) {
+        pingAllBtn.addEventListener("click", () => {
+          pingAllBtn.textContent = "Querying Beacons...";
+          setTimeout(() => {
+            pingAllBtn.textContent = "Ping All Clusters";
+            showToast("All 4 clusters responded healthy with P95 < 45ms", "success");
+          }, 600);
+        });
+      }
     }
   }
 
   attachEvents(container) {
-    container.querySelector("#admin-role-select").addEventListener("change", (e) => {
-      this.currentRole = e.target.value;
-      showToast(`RBAC context set to ${this.currentRole}`, "info");
-    });
-
-    const tabs = container.querySelectorAll(".tab-btn");
+    const tabs = container.querySelectorAll("#admin-dash-tabs .tab-btn");
     tabs.forEach((tab) => {
       tab.addEventListener("click", () => {
-        this.activeTab = tab.dataset.tab;
         tabs.forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
+        this.activeTab = tab.dataset.tab;
         this.renderTabContent(container);
       });
     });
+
+    const roleSelect = container.querySelector("#admin-role-select");
+    if (roleSelect) {
+      roleSelect.addEventListener("change", (e) => {
+        this.currentRole = e.target.value;
+        showToast(`Perspective switched to ${this.currentRole}`, "info");
+      });
+    }
   }
 
-  openScopeReviewDrawer(request) {
-    let modal = document.getElementById("admin-scope-drawer");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "admin-scope-drawer";
-      modal.className = "modal-backdrop";
-      document.body.appendChild(modal);
-    }
+  attachKanbanEvents(body) {
+    const cards = body.querySelectorAll(".kanban-card");
+    const drawer = body.querySelector("#scope-review-drawer");
 
-    modal.innerHTML = `
-      <div class="modal-dialog modal-lg">
-        <div class="modal-header">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="badge badge-lime">${request.status}</span>
-              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${request.id}</span>
-            </div>
-            <h3 class="modal-title" style="margin-top: 4px;">Architecture Scoping &amp; BOM Override (FR-3.6)</h3>
-          </div>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
-        </div>
-        <div class="modal-body">
-          <div class="scope-meta-grid">
+    cards.forEach((card) => {
+      card.addEventListener("click", () => {
+        const id = card.dataset.id;
+        const requests = this.app.getCustomizationRequests();
+        const req = requests.find((r) => r.id === id);
+        if (!req) return;
+
+        drawer.innerHTML = `
+          <div class="drawer-header">
             <div>
-              <div class="scope-item-lbl">Tenant Organization</div>
-              <div class="scope-item-val">${request.tenantName}</div>
+              <span class="badge badge-lime">// SCOPE REVIEW DESK</span>
+              <h3 style="font-family: var(--font-heading); color: #FFF; margin-top: 4px;">${req.id} — ${req.tenantName}</h3>
             </div>
-            <div>
-              <div class="scope-item-lbl">Target Component</div>
-              <div class="scope-item-val">${request.componentName}</div>
+            <button class="btn-icon btn-ghost drawer-close-btn">${getIconSvg("x", 20)}</button>
+          </div>
+          <div class="drawer-body">
+            <div class="form-group">
+              <label class="form-label">Current Pipeline Stage</label>
+              <select class="select-input" id="drawer-status-select">
+                <option value="Submitted" ${req.status === "Submitted" ? "selected" : ""}>Submitted</option>
+                <option value="Under Review" ${req.status === "Under Review" ? "selected" : ""}>Under Review</option>
+                <option value="Quoted" ${req.status === "Quoted" ? "selected" : ""}>Quoted</option>
+                <option value="In Progress" ${req.status === "In Progress" ? "selected" : ""}>In Progress</option>
+                <option value="Delivered" ${req.status === "Delivered" ? "selected" : ""}>Delivered</option>
+              </select>
             </div>
-            <div>
-              <div class="scope-item-lbl">Infrastructure Target</div>
-              <div class="scope-item-val">${request.deploymentTarget}</div>
+            <div class="form-group">
+              <label class="form-label">Quoted Commercial Value (USD)</label>
+              <input type="text" class="text-input" id="drawer-price-input" value="${req.estimatedPrice}" />
             </div>
-            <div>
-              <div class="scope-item-lbl">Domain Context</div>
-              <div class="scope-item-val">${request.industry}</div>
+            <div class="form-group">
+              <label class="form-label">Architectural Scope Notes</label>
+              <textarea class="textarea-input" id="drawer-scope-input" rows="4">${req.scope}</textarea>
             </div>
+            <button class="btn btn-primary" id="btn-save-scope-changes" style="width: 100%;">
+              Commit Architectural Updates
+            </button>
           </div>
+        `;
 
-          <div class="form-group">
-            <label class="form-label">Approved Quotation Price (USD)</label>
-            <input type="text" id="drawer-quote-price" class="text-input" value="${request.estimatedPrice}" />
-          </div>
+        drawer.classList.add("active");
+        drawer.querySelector(".drawer-close-btn").addEventListener("click", () => drawer.classList.remove("active"));
 
-          <div class="form-group">
-            <label class="form-label">Target Delivery Sprint</label>
-            <input type="text" id="drawer-target-delivery" class="text-input" value="${request.targetDelivery}" />
-          </div>
+        drawer.querySelector("#btn-save-scope-changes").addEventListener("click", async () => {
+          const newStatus = drawer.querySelector("#drawer-status-select").value;
+          const newPrice = drawer.querySelector("#drawer-price-input").value;
+          const newScope = drawer.querySelector("#drawer-scope-input").value;
 
-          <div class="form-group">
-            <label class="form-label">Advance Pipeline Stage</label>
-            <select id="drawer-new-status" class="select-input" style="font-family: var(--font-mono); font-size: 0.8rem;">
-              <option value="Submitted" ${request.status === "Submitted" ? "selected" : ""}>Submitted</option>
-              <option value="Under Review" ${request.status === "Under Review" ? "selected" : ""}>Under Review</option>
-              <option value="Quoted" ${request.status === "Quoted" ? "selected" : ""}>Quoted (Awaiting Customer Payment)</option>
-              <option value="In Progress" ${request.status === "In Progress" ? "selected" : ""}>In Progress (Engineering Active)</option>
-              <option value="Delivered" ${request.status === "Delivered" ? "selected" : ""}>Delivered</option>
-            </select>
-          </div>
+          await this.app.api.updateCustomizationRequest(req.id, {
+            status: newStatus,
+            estimatedPrice: newPrice,
+            scope: newScope,
+            timelineEvent: `Admin updated status to ${newStatus} with revised scope.`
+          });
 
-          <div class="form-group">
-            <label class="form-label">Internal Engineering Scoping Notes (FR-6.7 - Hidden from Customer)</label>
-            <textarea id="drawer-internal-notes" class="textarea-input" placeholder="e.g. Verified Epic EHR FHIR endpoints. Standard connector will suffice with OAuth2 flow."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary modal-close-btn">Cancel</button>
-          <button class="btn btn-primary" id="btn-save-drawer-quote">
-            Save &amp; Update Stage
-          </button>
-        </div>
-      </div>
-    `;
-
-    modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
-    });
-
-    modal.querySelector("#btn-save-drawer-quote").addEventListener("click", () => {
-      const newPrice = modal.querySelector("#drawer-quote-price").value.trim();
-      const newDelivery = modal.querySelector("#drawer-target-delivery").value.trim();
-      const newStatus = modal.querySelector("#drawer-new-status").value;
-      const notes = modal.querySelector("#drawer-internal-notes").value.trim();
-
-      request.estimatedPrice = newPrice;
-      request.targetDelivery = newDelivery;
-      request.status = newStatus;
-
-      const stepMap = {
-        Submitted: 1,
-        "Under Review": 2,
-        Quoted: 3,
-        "In Progress": 4,
-        Delivered: 5
-      };
-      request.statusStep = stepMap[newStatus] || 1;
-
-      request.timelineLog.push({
-        date: "Today",
-        event: `Admin updated status to "${newStatus}" with quote ${newPrice}. ${notes ? `(${notes})` : ""}`
-      });
-
-      if (this.app && this.app.api) {
-        this.app.api.updateCustomizationRequest(request.id, {
-          status: newStatus,
-          statusStep: request.statusStep,
-          estimatedPrice: newPrice,
-          timelineEvent: `Admin updated status to "${newStatus}" with quote ${newPrice}. ${notes ? `(${notes})` : ""}`
+          showToast(`Job ${req.id} successfully updated!`, "success");
+          drawer.classList.remove("active");
+          this.renderTabContent(body.closest(".admin-container"));
         });
-      }
-
-      modal.classList.remove("active");
-      showToast(`Request ${request.id} advanced to ${newStatus}!`, "success");
-      const container = document.querySelector(".admin-container");
-      if (container) this.renderTabContent(container);
+      });
     });
   }
 }

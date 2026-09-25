@@ -1,5 +1,6 @@
 // Cortex Hub - PostgreSQL Database Schema
 // Supported by Prisma ORM for PostgreSQL 18 & pgvector
+// Aligned with Master SRS v2.0 Multi-Vendor Marketplace Specification
 
 generator client {
   provider = "prisma-client-js"
@@ -10,9 +11,308 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --------------------------------------------------------------------------
-// Multi-Tenant Isolation & Account Management (SRS Section 2.3 & 5.1)
-// --------------------------------------------------------------------------
+// ============================================================================
+// 1. IDENTITY & MULTI-VENDOR PROFILES (SRS v2.0 Section 7, 22, 33)
+// ============================================================================
+
+enum UserRole {
+  VISITOR
+  BUYER
+  SELLER
+  MODERATOR
+  ADMIN
+  SUPERADMIN
+}
+
+enum VerificationLevel {
+  UNVERIFIED
+  EMAIL_VERIFIED
+  PLATFORM_REVIEWED
+  VERIFIED
+  TRUSTED_SELLER
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String
+  name             String
+  role             UserRole         @default(BUYER)
+  status           String           @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  sellerProfile    SellerProfile?
+  orders           Order[]
+  entitlements     Entitlement[]
+  reviews          Review[]
+  moderationAudits ModerationRecord[]
+
+  @@map("users")
+}
+
+model SellerProfile {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  handle           String            @unique
+  displayName      String
+  bio              String?
+  organization     String?
+  website          String?
+  github           String?
+  verifiedLevel    VerificationLevel @default(UNVERIFIED)
+  averageRating    Float             @default(5.0)
+  totalSalesCount  Int               @default(0)
+  grossRevenueUsd  Float             @default(0.0)
+  pendingBalance   Float             @default(0.0)
+  availableBalance Float             @default(0.0)
+  payoutAddress    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products         Product[]
+  payouts          SellerPayout[]
+
+  @@map("seller_profiles")
+}
+
+// ============================================================================
+// 2. MULTI-VENDOR AI/ML PRODUCTS & ARTIFACTS (SRS v2.0 Section 8, 9, 12, 15)
+// ============================================================================
+
+enum ProductType {
+  MODEL
+  FINETUNE
+  LORA
+  EMBEDDING_MODEL
+  RERANKER
+  DATASET
+  API
+  SDK
+  PYTHON_PACKAGE
+  NPM_PACKAGE
+  RAG_SYSTEM
+  AI_AGENT
+  MCP_SERVER
+  WORKFLOW
+  BENCHMARK
+  EVALUATION_SUITE
+  PROMPT_PACK
+  DOCKER_IMAGE
+  SAAS
+  CUSTOM_SERVICE
+}
+
+enum ProductStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+model Product {
+  id                 String             @id @default(uuid())
+  sellerId           String
+  name               String
+  slug               String             @unique
+  shortDesc          String
+  longDesc           String
+  category           String             // Generative AI, NLP, Computer Vision, etc.
+  productType        ProductType        @default(RAG_SYSTEM)
+  status             ProductStatus      @default(PUBLISHED)
+  verificationStatus VerificationLevel  @default(PLATFORM_REVIEWED)
+  licenseType        String             @default("Commercial Permissive")
+  startingPrice      Int                @default(499)
+  currency           String             @default("USD")
+  rating             Float              @default(4.9)
+  ratingCount        Int                @default(1)
+  downloadCount      Int                @default(0)
+  tags               String[]
+  features           String[]
+  hardwareReqs       Json?              // VRAM, GPU recommendation, CPU cores
+  benchmarks         Json?              // Accuracy %, Latency P95, Dataset tested
+  pricingTiers       Json?              // Starter, Pro, Enterprise
+  architecture       Json?              // Pipeline visual stages
+  codeSnippets       Json?              // Python, cURL, NPM snippets
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  seller             SellerProfile      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  versions           ProductVersion[]
+  orderItems         OrderItem[]
+  entitlements       Entitlement[]
+  reviews            Review[]
+  moderations        ModerationRecord[]
+
+  @@map("products")
+}
+
+model ProductVersion {
+  id                 String             @id @default(uuid())
+  productId          String
+  version            String             // e.g. "1.3.2" (SemVer)
+  changelog          String
+  releaseNotes       String?
+  artifactHashSha256 String?            // Checksum
+  compatibility      String?            // Python 3.10+, PyTorch 2.4, CUDA 12.1
+  createdAt          DateTime           @default(now())
+
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  files              ProductFile[]
+
+  @@map("product_versions")
+}
+
+model ProductFile {
+  id                 String             @id @default(uuid())
+  versionId          String
+  fileName           String
+  storageKey         String             // S3/Cloud storage path
+  fileSize           BigInt             // in bytes
+  checksumSha256     String
+  mimeType           String
+  createdAt          DateTime           @default(now())
+
+  version            ProductVersion     @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@map("product_files")
+}
+
+// ============================================================================
+// 3. COMMERCE, LICENSES & DIGITAL DELIVERY (SRS v2.0 Section 14, 17, 19, 20)
+// ============================================================================
+
+enum OrderStatus {
+  CREATED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id                 String             @id @default(uuid())
+  buyerId            String
+  totalAmount        Float
+  currency           String             @default("USD")
+  taxAmount          Float              @default(0.0)
+  platformFee        Float              @default(0.0) // Platform commission take-rate
+  sellerNet          Float              @default(0.0)
+  status             OrderStatus        @default(PAID)
+  paymentMethod      String             @default("Corporate Card")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  buyer              User               @relation(fields: [buyerId], references: [id])
+  items              OrderItem[]
+  entitlements       Entitlement[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                 String             @id @default(uuid())
+  orderId            String
+  productId          String
+  licenseTier        String             // Starter, Pro, Enterprise
+  pricePaid          Float
+  createdAt          DateTime           @default(now())
+
+  order              Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product            Product            @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Entitlement {
+  id                 String             @id @default(uuid())
+  buyerId            String
+  productId          String
+  orderId            String
+  licenseTier        String
+  licenseKey         String             @unique
+  downloadAllowed    Boolean            @default(true)
+  signedDownloadUrl  String?
+  checksumSha256     String?
+  apiQuota           Int                @default(100000)
+  apiUsage           Int                @default(0)
+  status             String             @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED
+  expiresAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  buyer              User               @relation(fields: [buyerId], references: [id])
+  product            Product            @relation(fields: [productId], references: [id])
+  order              Order              @relation(fields: [orderId], references: [id])
+
+  @@map("entitlements")
+}
+
+model SellerPayout {
+  id                 String             @id @default(uuid())
+  sellerId           String
+  amount             Float
+  currency           String             @default("USD")
+  payoutMethod       String             // ACH, Wire, Stripe Connect
+  destinationAccount String
+  status             String             @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, HELD
+  txHash             String?
+  createdAt          DateTime           @default(now())
+
+  seller             SellerProfile      @relation(fields: [sellerId], references: [id])
+
+  @@map("seller_payouts")
+}
+
+// ============================================================================
+// 4. VERIFIED REVIEWS & RATINGS (SRS v2.0 Section 21)
+// ============================================================================
+
+model Review {
+  id                 String             @id @default(uuid())
+  productId          String
+  buyerId            String
+  rating             Int                // 1 to 5
+  title              String
+  comment            String
+  versionPurchased   String
+  verifiedPurchase   Boolean            @default(true)
+  sellerReply        String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  buyer              User               @relation(fields: [buyerId], references: [id])
+
+  @@map("reviews")
+}
+
+// ============================================================================
+// 5. GOVERNANCE & MODERATION AUDITS (SRS v2.0 Section 13, 31, 45)
+// ============================================================================
+
+model ModerationRecord {
+  id                 String             @id @default(uuid())
+  productId          String
+  moderatorId        String
+  action             String             // APPROVED, REJECTED, SUSPENDED, RESTORED
+  reason             String?
+  technicalChecklist Json?              // Malware: pass, Integrity: pass, Specs: pass
+  createdAt          DateTime           @default(now())
+
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  moderator          User               @relation(fields: [moderatorId], references: [id])
+
+  @@map("moderation_records")
+}
+
+// ============================================================================
+// 6. BACKWARD-COMPATIBLE RUNTIME & ENTERPRISE BOM (SRS v1.0 / v2.0 Hybrid)
+// ============================================================================
+
 model Tenant {
   id                    String                 @id @default(uuid())
   slug                  String                 @unique
@@ -32,9 +332,6 @@ model Tenant {
   @@map("tenants")
 }
 
-// --------------------------------------------------------------------------
-// AI Component Catalog & Versioning (FR-1.1 - FR-1.6)
-// --------------------------------------------------------------------------
 model Component {
   id               String                 @id
   name             String
@@ -50,9 +347,9 @@ model Component {
   inrPriceFormatted String
   tags             String[]
   features         String[]
-  pricingTiers     Json                   // Array of tier configurations
-  architecture     Json                   // Step-by-step pipeline stages
-  codeSnippets     Json                   // Python, cURL, etc.
+  pricingTiers     Json
+  architecture     Json
+  codeSnippets     Json
   published        Boolean                @default(true)
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
@@ -63,9 +360,6 @@ model Component {
   @@map("components")
 }
 
-// --------------------------------------------------------------------------
-// Customization Requests & Architecture BOM (FR-3.1 - FR-3.8)
-// --------------------------------------------------------------------------
 model CustomizationRequest {
   id               String    @id
   tenantId         String
@@ -78,10 +372,10 @@ model CustomizationRequest {
   estimatedPrice   String
   priceInr         String
   targetDelivery   String
-  status           String    @default("Submitted") // Submitted, Under Review, Quoted, In Progress, Delivered
+  status           String    @default("Submitted")
   statusStep       Int       @default(1)
   submittedDate    DateTime  @default(now())
-  timelineLog      Json      // Array of audit timeline records
+  timelineLog      Json
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -91,16 +385,13 @@ model CustomizationRequest {
   @@map("customization_requests")
 }
 
-// --------------------------------------------------------------------------
-// Cryptographic Licensing & Entitlements (FR-4.1 - FR-4.8)
-// --------------------------------------------------------------------------
 model License {
   id               String    @id @default(uuid())
   tenantId         String
   componentId      String
-  tier             String    // Starter, Advanced, Pro, Scale, Enterprise
+  tier             String
   licenseKey       String    @unique
-  status           String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  status           String    @default("ACTIVE")
   clusterTarget    String    @default("Dedicated VPC (AWS us-east-1)")
   rateLimit        String    @default("1,000 req/min")
   startDate        DateTime  @default(now())
@@ -114,16 +405,13 @@ model License {
   @@map("licenses")
 }
 
-// --------------------------------------------------------------------------
-// API Key Secrets & Tenant Quotas (FR-5.3, FR-5.4)
-// --------------------------------------------------------------------------
 model ApiKey {
   id               String    @id @default(uuid())
   tenantId         String
   name             String
-  prefix           String    // e.g. ctx_live_...
-  keyHash          String    // SHA-256 hash of secret key
-  status           String    @default("ACTIVE") // ACTIVE, REVOKED
+  prefix           String
+  keyHash          String
+  status           String    @default("ACTIVE")
   environment      String    @default("Production")
   monthlySpend     Float     @default(0.0)
   lastUsed         DateTime?
@@ -135,18 +423,15 @@ model ApiKey {
   @@map("api_keys")
 }
 
-// --------------------------------------------------------------------------
-// Support Tickets & SLA Management (FR-5.6, FR-6.7)
-// --------------------------------------------------------------------------
 model SupportTicket {
   id               String    @id
   tenantId         String
   subject          String
-  priority         String    // LOW, MEDIUM, HIGH, CRITICAL
-  status           String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority         String
+  status           String    @default("OPEN")
   lastActivity     String    @default("Just now")
-  messages         Json      // Array of message conversation threads
-  internalNotes    String?   // Visible only to Platform Admins
+  messages         Json
+  internalNotes    String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -155,9 +440,6 @@ model SupportTicket {
   @@map("support_tickets")
 }
 
-// --------------------------------------------------------------------------
-// Tenant Usage Telemetry & Cost Ledger (FR-5.4)
-// --------------------------------------------------------------------------
 model UsageMetric {
   id               String    @id @default(uuid())
   tenantId         String

@@ -1,0 +1,528 @@
+/* ==========================================================================
+   Cortex Hub - Seller Studio, Submission Wizard & Comparison Matrix
+   Aligned with Master SRS v2.0 Specifications
+   ========================================================================== */
+
+/* --- Seller Studio Header --- */
+.seller-studio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.seller-header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 320px;
+}
+
+.seller-avatar-badge {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-3);
+  border: 2px solid var(--accent-lime);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent-lime);
+  flex-shrink: 0;
+}
+
+.seller-verified-pip {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-lime);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-surface-1);
+}
+
+.seller-name {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #FFF;
+  margin: 0;
+}
+
+.seller-bio {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 4px 0 6px;
+  line-height: 1.4;
+}
+
+.seller-subline {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.seller-header-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.seller-stat-card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 16px 20px;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+}
+
+.seller-stat-card .stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.seller-stat-card .stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 4px 0 2px;
+}
+
+.seller-stat-card .stat-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* --- Seller Tabs Navigation --- */
+.seller-tabs-nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-medium);
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.seller-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.seller-tab-btn:hover {
+  color: #FFF;
+}
+
+.seller-tab-btn.active {
+  color: var(--accent-lime);
+  border-bottom-color: var(--accent-lime);
+  background: var(--accent-lime-dim);
+}
+
+/* --- Portfolio Table --- */
+.portfolio-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.seller-table-container {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  overflow-x: auto;
+}
+
+.seller-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.seller-table th {
+  background: var(--bg-surface-2);
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.seller-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.seller-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* --- 8-Step Submission Wizard (SRS Section 12) --- */
+.wizard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wizard-stepper {
+  display: flex;
+  justify-content: space-between;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 14px 16px;
+  overflow-x: auto;
+  gap: 12px;
+}
+
+.wizard-step-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.wizard-step-node.active {
+  opacity: 1;
+}
+
+.wizard-step-node.completed {
+  opacity: 0.85;
+}
+
+.wizard-step-node .step-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #FFF;
+}
+
+.wizard-step-node.active .step-circle {
+  background: var(--accent-lime);
+  color: #000;
+  border-color: var(--accent-lime);
+  font-weight: 700;
+}
+
+.wizard-step-node.completed .step-circle {
+  background: var(--status-live);
+  color: #000;
+  border-color: var(--status-live);
+}
+
+.wizard-step-node .step-name {
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #FFF;
+}
+
+.wizard-card {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  padding: 28px;
+}
+
+.wizard-card-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+}
+
+.wizard-step-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #FFF;
+}
+
+.wizard-step-desc {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.wizard-form-body {
+  margin-bottom: 24px;
+}
+
+.wizard-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 18px;
+}
+
+/* --- Wallet Ledger Grid --- */
+.wallet-ledger-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* --- Product Type Filter Pills --- */
+.product-type-pills-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 10px;
+}
+
+.type-pill-btn {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.type-pill-btn:hover {
+  color: #FFF;
+  border-color: var(--border-medium);
+}
+
+.type-pill-btn.active {
+  background: var(--accent-lime-dim);
+  border-color: var(--accent-lime);
+  color: var(--accent-lime);
+  font-weight: 600;
+}
+
+/* --- Compare Toggle Button --- */
+.btn-compare-toggle {
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-compare-toggle:hover {
+  color: #FFF;
+  border-color: var(--border-medium);
+}
+
+.btn-compare-toggle.active {
+  background: var(--accent-lime);
+  color: #000;
+  border-color: var(--accent-lime);
+  font-weight: 700;
+}
+
+/* --- Floating Comparison Tray (FR-MKT-005) --- */
+.comparison-tray {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  width: calc(100% - 48px);
+  max-width: 900px;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 40px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.comparison-tray-inner {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--accent-lime);
+  border-radius: var(--radius-xs);
+  padding: 12px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comparison-tray-left {
+  display: flex;
+  align-items: center;
+}
+
+.comparison-tray-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* --- Comparison Matrix Table --- */
+.comparison-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.comparison-matrix-table th {
+  padding: 14px 18px;
+  background: var(--bg-surface-2);
+  border-bottom: 2px solid var(--border-medium);
+  vertical-align: top;
+}
+
+.comparison-matrix-table td {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.comparison-matrix-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.matrix-label {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: 180px;
+}
+
+.matrix-val {
+  color: var(--text-primary);
+}
+
+/* --- Specification Box --- */
+.spec-detail-box {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-detail-box .spec-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.spec-detail-box .spec-val {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #FFF;
+  margin-top: 4px;
+}
+
+/* --- Funnel Progress --- */
+.funnel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.funnel-stage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.funnel-stage-info {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.funnel-stage-name {
+  color: var(--text-primary);
+}
+
+.funnel-stage-count {
+  color: var(--accent-lime);
+  font-weight: 700;
+}
+
+.funnel-progress-bar {
+  height: 8px;
+  background: var(--bg-surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.funnel-fill {
+  height: 100%;
+  background: var(--signal-cyan);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
