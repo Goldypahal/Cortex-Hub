@@ -17,7 +17,12 @@ import {
   MOCK_BUYER_ENTITLEMENTS
 } from "../data/mock-dashboard.js";
 
-const API_BASE = "http://localhost:5000/api";
+// G9 FIX: API base URL reads from environment config, never hardcoded.
+// Set window.CORTEX_API_URL via a server-rendered <script> tag or env injection.
+// Falls back to relative path '/api' so it works on any deployment.
+const API_BASE = (typeof window !== "undefined" && window.CORTEX_API_URL)
+  ? window.CORTEX_API_URL
+  : "/api";
 
 class ApiClient {
   constructor() {
@@ -298,7 +303,11 @@ print("Result:", output)`,
     const version = comp ? comp.version : "v1.0.0";
     const priceNum = comp ? comp.basePrice : 499;
 
-    const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // G2 FIX: CSPRNG for license keys, not Math.random()
+    const licBytes = new Uint8Array(12);
+    crypto.getRandomValues(licBytes);
+    const licHex = Array.from(licBytes).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${licHex.substring(0, 6)}-${licHex.substring(6, 12)}`;
 
     // Create License record
     const newLic = {
@@ -393,11 +402,19 @@ print("Result:", output)`,
   }
 
   async createApiKey(name, environment) {
+    // G2 FIX: Use crypto.getRandomValues() (CSPRNG) - never Math.random() for secrets.
+    const randomBytes = new Uint8Array(20);
+    crypto.getRandomValues(randomBytes);
+    const randomHex = Array.from(randomBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    const envPrefix = environment === "Staging" ? "test" : "live";
+    const rawKey = `ctx_${envPrefix}_${randomHex}`;
+    const maskedKey = `ctx_${envPrefix}_${randomHex.substring(0, 6)}[REDACTED]`;
+
     const newKey = {
-      id: `key-${Math.floor(100 + Math.random() * 900)}`,
+      id: `key-${randomHex.substring(0, 8)}`,
       name: name || "Production Cluster Key",
-      prefix: `ctx_${environment === "Staging" ? "test" : "live"}_${Math.random().toString(36).substring(2, 8)}••••••••`,
-      rawKey: `ctx_${environment === "Staging" ? "test" : "live"}_${Math.random().toString(36).substring(2, 8)}${Math.random().toString(36).substring(2, 10)}`,
+      prefix: maskedKey,
+      rawKey, // shown ONCE to user, never retrievable again after creation
       environment: environment || "Production",
       status: "Active",
       calls30d: "0",
@@ -407,7 +424,7 @@ print("Result:", output)`,
     return newKey;
   }
 
-  async revokeApiKey(id) {
+    async revokeApiKey(id) {
     const k = this.memoryApiKeys.find((item) => item.id === id);
     if (k) k.status = "Revoked";
     return true;

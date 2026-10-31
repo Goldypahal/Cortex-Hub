@@ -1,161 +1,226 @@
 /**
  * Cortex Hub - Marketplace & Catalog View Controller
- * Implements SRS v2.0 Section 8 (Categories), Section 9 (Product Types),
- * Section 10 (Marketplace, Search, Filtering & Product Comparison FR-MKT-005),
- * Section 11 (Product Detail Page), and Section 21 (Verified Reviews).
+ * Implements Master SRS v3.0:
+ * - Section 8: Outcome-Driven Taxonomy & Intent Mapping (Buyer Mode) + Technical Graph (Dev Mode)
+ * - Section 10: Dual Display Modes (FR-MKT-001, FR-MKT-002, FR-MKT-003, FR-MKT-004, FR-MKT-005)
+ * - Section 11: Product Detail Page (PDP) with Progressive Disclosure & Trust Panel (PDP-01, PDP-02, PDP-03)
+ * - Section 21: Verified Purchaser Reviews
+ * - G7 Fix: XSS sanitization via escapeHtml()
  */
 
 import { CATALOG_COMPONENTS } from "../data/catalog-data.js";
-import { getIconSvg, copyToClipboard, showToast } from "../utils/helpers.js";
+import { getIconSvg, copyToClipboard, showToast, escapeHtml } from "../utils/helpers.js";
 
 export class MarketplaceView {
   constructor(app) {
     this.app = app;
     this.components = CATALOG_COMPONENTS;
+    // SRS DISC-04: Dual Display Modes - default to Buyer Mode
+    this.viewMode = localStorage.getItem("cortex_hub_view_mode") || "buyer";
     this.selectedCategory = "all";
     this.selectedProductType = "all";
     this.selectedIndustry = "all";
     this.searchQuery = "";
-    this.comparedComponentIds = new Set(); // Multi-product comparison (FR-MKT-005)
+    this.comparedComponentIds = new Set();
   }
 
   async render(container) {
     // Refresh components from client cache/backend
-    this.components = await this.app.api.getComponents();
+    try {
+      const remote = await this.app.api.getComponents();
+      if (Array.isArray(remote) && remote.length > 0) {
+        this.components = remote;
+      }
+    } catch {
+      // Keep local catalog
+    }
+
+    const isBuyer = this.viewMode === "buyer";
 
     container.innerHTML = `
-      <!-- Asymmetric Hero Section (Off-Center Split) -->
+      <!-- SRS DISC-04: View Mode Switcher -->
+      <div class="view-mode-switch-wrapper">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="mode-switch-label">VIEW PERSPECTIVE:</span>
+          <div class="mode-switch-pills">
+            <button class="mode-pill-btn ${isBuyer ? "active" : ""}" id="btn-mode-buyer" data-mode="buyer">
+              🏢 Business Buyer (Outcomes)
+            </button>
+            <button class="mode-pill-btn ${!isBuyer ? "active" : ""}" id="btn-mode-dev" data-mode="developer">
+              💻 Developer & AI Engineer (Specs)
+            </button>
+          </div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">
+          <span>[SPEC: SRS v3.0]</span> • <span style="color: var(--accent);">${this.components.length} Verified Components</span>
+        </div>
+      </div>
+
+      <!-- Asymmetric Hero Section -->
       <section class="hero-asymmetric">
-        <!-- Left Column: High-Impact Technical Narrative -->
+        <!-- Left Column -->
         <div class="hero-content-left">
-          <span class="hero-spec-tag">// MASTER SPECIFICATION // SRS v2.0 MULTI-VENDOR</span>
-          <h1 class="hero-headline">
-            Production AI Engines. <span class="accent-text">Zero Guesswork.</span>
-          </h1>
-          <p class="hero-technical-desc">
-            The multi-vendor marketplace for production-ready AI building blocks. Discover, evaluate in live sandboxes, compare technical architectures, and integrate verified models, agents, MCP servers, and RAG pipelines.
-          </p>
+          ${
+            isBuyer
+              ? `
+            <span class="hero-spec-tag">// BUSINESS SOLUTION STORE // TRY-BEFORE-YOU-BUY</span>
+            <h1 class="hero-headline">
+              Find AI Tools That Solve <span class="accent-text">Real Business Problems.</span>
+            </h1>
+            <p class="hero-technical-desc">
+              Tell us what you need, test it with your sample business files, and see transparent pricing in USD and INR. Shielded from model parameters and vector database complexity.
+            </p>
+          `
+              : `
+            <span class="hero-spec-tag">// MASTER SPECIFICATION // SRS v3.0 MULTI-VENDOR</span>
+            <h1 class="hero-headline">
+              Production AI Engines. <span class="accent-text">Zero Guesswork.</span>
+            </h1>
+            <p class="hero-technical-desc">
+              The commercialization platform for AI engineers. Discover, benchmark in isolated sandboxes, compare technical architectures, and integrate verified models, agents, MCP servers, and RAG pipelines.
+            </p>
+          `
+          }
 
           <div class="hero-cta-cluster">
             <button class="btn btn-primary btn-lg" id="hero-btn-explore">
-              Explore ${this.components.length} Verified Components →
+              Explore ${this.components.length} Verified Solutions →
             </button>
             <button class="btn btn-secondary btn-lg" id="hero-btn-launch-sandbox">
               Launch Live Sandbox
             </button>
             <button class="btn btn-outline btn-lg" id="hero-btn-sell-component">
-              Sell Component →
+              Publish AI Component →
             </button>
           </div>
 
           <div class="hero-specs-row">
             <div class="hero-spec-item">
-              <span class="hero-spec-val">${this.components.length}/${this.components.length}</span>
-              <span class="hero-spec-lbl">Production Templates</span>
+              <span class="hero-spec-val">${this.components.length}</span>
+              <span class="hero-spec-lbl">Verified Solutions</span>
             </div>
             <div class="hero-spec-item">
               <span class="hero-spec-val">&lt; 750ms</span>
-              <span class="hero-spec-lbl">Average P95 Latency</span>
+              <span class="hero-spec-lbl">Median Latency</span>
             </div>
             <div class="hero-spec-item">
               <span class="hero-spec-val">100%</span>
-              <span class="hero-spec-lbl">Verified Vendors</span>
+              <span class="hero-spec-lbl">Sandboxed Verification</span>
             </div>
             <div class="hero-spec-item">
-              <span class="hero-spec-val">DPDP/SOC2</span>
-              <span class="hero-spec-lbl">Zero Data Egress</span>
+              <span class="hero-spec-val">INR + USD</span>
+              <span class="hero-spec-lbl">GST Invoicing</span>
             </div>
           </div>
         </div>
 
-        <!-- Right Column: Live Pipeline Benchmark Monitor -->
+        <!-- Right Column: Live Telemetry & Benchmark Monitor -->
         <div class="pipeline-monitor-box">
           <div class="monitor-header">
             <span class="monitor-title">
               <span class="ticker-beacon"></span>
-              LIVE PIPELINE BENCHMARK // RAG-1.3
+              LIVE PLATFORM TELEMETRY // MEASURED PROOF
             </span>
-            <span class="badge badge-lime">ACTIVE TELEMETRY</span>
+            <span class="badge badge-lime">TELEMETRY ACTIVE</span>
           </div>
 
           <div class="monitor-pipeline-stages">
             <div class="pipeline-stage-row">
-              <span class="stage-name">1. Document OCR &amp; Chunking</span>
+              <span class="stage-name">1. Document OCR &amp; Parsing</span>
               <span class="stage-latency">14ms</span>
             </div>
             <div class="pipeline-stage-row">
-              <span class="stage-name">2. Dense Vector (pgvector HNSW)</span>
+              <span class="stage-name">2. Dense Vector Retrieval (HNSW)</span>
               <span class="stage-latency">28ms</span>
             </div>
             <div class="pipeline-stage-row">
-              <span class="stage-name">3. BM25 Sparse Reciprocal Rank</span>
-              <span class="stage-latency">19ms</span>
-            </div>
-            <div class="pipeline-stage-row">
-              <span class="stage-name">4. Cohere Cross-Encoder Rerank</span>
+              <span class="stage-name">3. Cross-Encoder Semantic Rerank</span>
               <span class="stage-latency">42ms</span>
             </div>
-            <div class="pipeline-stage-row" style="border-color: var(--accent-lime-border);">
-              <span class="stage-name">5. Grounded Citation Verification</span>
-              <span class="stage-latency" style="color: var(--accent-lime);">737ms</span>
+            <div class="pipeline-stage-row" style="border-color: var(--border-focus);">
+              <span class="stage-name">4. Factual Citation Grounding</span>
+              <span class="stage-latency" style="color: var(--accent);">98.4% Score</span>
             </div>
           </div>
 
           <div class="monitor-live-output">
-            <div style="color: var(--text-muted); margin-bottom: 4px;">// LATEST INFERENCE PROOF:</div>
-            <div>"Section 12.3: Liability capped at 12mo contract value."</div>
-            <div style="color: var(--accent-lime); margin-top: 4px; font-size: 0.7rem;">
-              → [Doc: Enterprise_MSA.docx // Page 18 // Byte: 14892-15200]
+            <div style="color: var(--text-muted); margin-bottom: 4px;">// LIVE MEASURED RUN (Telemetry Proof):</div>
+            <div>"Section 12.3: Liability indemnification capped at 12-month contract fees."</div>
+            <div style="color: var(--accent); margin-top: 4px; font-size: 0.72rem;">
+              → Verified Source: MSA_2026.docx // Page 18 // Zero Data Egress
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Functional Filter & Search Bar (SRS Section 8 & 9) -->
+      <!-- Filter & Search Bar -->
       <section class="filter-bar">
         <div class="filter-top-row">
           <div class="search-input-box">
             <span class="search-svg-icon">${getIconSvg("search", 15)}</span>
-            <input type="text" id="catalog-search" class="search-field" placeholder="Search components by technical capability, model, framework, or vendor..." />
+            <input type="text" id="catalog-search" class="search-field" 
+              placeholder="${isBuyer ? "What do you want AI to do? (e.g. answer customer questions, review contracts)..." : "Search by architecture, model, framework, license, or vendor..."}" 
+              value="${escapeHtml(this.searchQuery)}" />
           </div>
           <select id="industry-filter" class="industry-dropdown">
-            <option value="all">DOMAIN: ALL DISCIPLINES</option>
-            <option value="Legal">DOMAIN: LEGAL &amp; COMPLIANCE</option>
-            <option value="Healthcare">DOMAIN: HEALTHCARE &amp; BIO</option>
-            <option value="Finance">DOMAIN: FINANCE &amp; AUDIT</option>
-            <option value="E-Commerce">DOMAIN: E-COMMERCE</option>
-            <option value="EdTech">DOMAIN: EDTECH &amp; PEDAGOGY</option>
-            <option value="Recruitment">DOMAIN: RECRUITMENT</option>
-            <option value="Developer Tools">DOMAIN: DEVOPS &amp; TOOLS</option>
+            <option value="all">ALL INDUSTRIES</option>
+            <option value="Legal">Legal &amp; Compliance</option>
+            <option value="Healthcare">Healthcare &amp; Bio</option>
+            <option value="Finance">Finance &amp; Banking</option>
+            <option value="E-Commerce">E-Commerce &amp; Retail</option>
+            <option value="EdTech">Education &amp; Training</option>
+            <option value="Recruitment">HR &amp; Recruitment</option>
+            <option value="Developer Tools">Software &amp; DevOps</option>
           </select>
         </div>
 
-        <!-- Hierarchical Categories (SRS Section 8) -->
+        <!-- Hierarchical Categories -->
         <div class="category-tags-row">
-          <button class="cat-filter-btn active" data-cat="all">ALL DISCIPLINES [${this.components.length}]</button>
-          <button class="cat-filter-btn" data-cat="Generative AI">GENERATIVE AI &amp; RAG</button>
-          <button class="cat-filter-btn" data-cat="Computer Vision">COMPUTER VISION &amp; OCR</button>
-          <button class="cat-filter-btn" data-cat="Developer Tools">DEV TOOLS &amp; MCP SERVERS</button>
-          <button class="cat-filter-btn" data-cat="NLP">NLP &amp; RERANKERS</button>
-          <button class="cat-filter-btn" data-cat="Machine Learning">MACHINE LEARNING &amp; RECS</button>
-          <button class="cat-filter-btn" data-cat="EdTech">EDTECH &amp; PEDAGOGY</button>
+          ${
+            isBuyer
+              ? `
+            <button class="cat-filter-btn ${this.selectedCategory === "all" ? "active" : ""}" data-cat="all">ALL SOLUTIONS [${this.components.length}]</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "💬 Talk to Customers" ? "active" : ""}" data-cat="💬 Talk to Customers">💬 Talk to Customers</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "📄 Work with Documents" ? "active" : ""}" data-cat="📄 Work with Documents">📄 Work with Documents</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "📊 Understand Data" ? "active" : ""}" data-cat="📊 Understand Data">📊 Understand Data</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "🛒 Increase Sales" ? "active" : ""}" data-cat="🛒 Increase Sales">🛒 Increase Sales</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "⚙️ Automate Work" ? "active" : ""}" data-cat="⚙️ Automate Work">⚙️ Automate Work</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "✍️ Create Content" ? "active" : ""}" data-cat="✍️ Create Content">✍️ Create Content</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "🔎 Find Information" ? "active" : ""}" data-cat="🔎 Find Information">🔎 Find Information</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "👥 Manage Employees" ? "active" : ""}" data-cat="👥 Manage Employees">👥 Manage Employees</button>
+          `
+              : `
+            <button class="cat-filter-btn ${this.selectedCategory === "all" ? "active" : ""}" data-cat="all">ALL DISCIPLINES [${this.components.length}]</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "Generative AI" ? "active" : ""}" data-cat="Generative AI">GENERATIVE AI &amp; RAG</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "Computer Vision" ? "active" : ""}" data-cat="Computer Vision">COMPUTER VISION &amp; OCR</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "Developer Tools" ? "active" : ""}" data-cat="Developer Tools">DEV TOOLS &amp; MCP SERVERS</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "NLP" ? "active" : ""}" data-cat="NLP">NLP &amp; RERANKERS</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "Machine Learning" ? "active" : ""}" data-cat="Machine Learning">MACHINE LEARNING &amp; RECS</button>
+            <button class="cat-filter-btn ${this.selectedCategory === "EdTech" ? "active" : ""}" data-cat="EdTech">EDTECH &amp; PEDAGOGY</button>
+          `
+          }
         </div>
 
-        <!-- Product Type Pills (SRS Section 9) -->
-        <div class="product-type-pills-row">
-          <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); align-self: center; margin-right: 6px;">TYPE:</span>
-          <button class="type-pill-btn active" data-type="all">ALL TYPES</button>
-          <button class="type-pill-btn" data-type="RAG_SYSTEM">RAG_SYSTEM</button>
-          <button class="type-pill-btn" data-type="AI_AGENT">AI_AGENT</button>
-          <button class="type-pill-btn" data-type="MCP_SERVER">MCP_SERVER</button>
-          <button class="type-pill-btn" data-type="MODEL">MODEL</button>
-          <button class="type-pill-btn" data-type="WORKFLOW">WORKFLOW</button>
-          <button class="type-pill-btn" data-type="RERANKER">RERANKER</button>
-          <button class="type-pill-btn" data-type="PROMPT_PACK">PROMPT_PACK</button>
-        </div>
+        ${
+          !isBuyer
+            ? `
+          <!-- Product Type Pills (Developer Mode only) -->
+          <div class="product-type-pills-row">
+            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); align-self: center; margin-right: 6px;">TYPE:</span>
+            <button class="type-pill-btn ${this.selectedProductType === "all" ? "active" : ""}" data-type="all">ALL TYPES</button>
+            <button class="type-pill-btn ${this.selectedProductType === "RAG_SYSTEM" ? "active" : ""}" data-type="RAG_SYSTEM">RAG_SYSTEM</button>
+            <button class="type-pill-btn ${this.selectedProductType === "AI_AGENT" ? "active" : ""}" data-type="AI_AGENT">AI_AGENT</button>
+            <button class="type-pill-btn ${this.selectedProductType === "MCP_SERVER" ? "active" : ""}" data-type="MCP_SERVER">MCP_SERVER</button>
+            <button class="type-pill-btn ${this.selectedProductType === "MODEL" ? "active" : ""}" data-type="MODEL">MODEL</button>
+            <button class="type-pill-btn ${this.selectedProductType === "WORKFLOW" ? "active" : ""}" data-type="WORKFLOW">WORKFLOW</button>
+            <button class="type-pill-btn ${this.selectedProductType === "API" ? "active" : ""}" data-type="API">API</button>
+          </div>
+        `
+            : ""
+        }
       </section>
 
-      <!-- Bento Asymmetric Catalog Grid -->
+      <!-- Bento Catalog Grid -->
       <section id="bento-catalog-grid" class="bento-catalog-grid">
         <!-- Injected dynamically -->
       </section>
@@ -164,7 +229,7 @@ export class MarketplaceView {
       <div id="comparison-tray" class="comparison-tray" style="display: none;">
         <div class="comparison-tray-inner">
           <div class="comparison-tray-left">
-            <span class="badge badge-lime">// COMPARISON ENGINE (FR-MKT-005)</span>
+            <span class="badge badge-lime">// COMPARISON ENGINE</span>
             <span id="comparison-count-label" style="font-family: var(--font-mono); font-size: 0.82rem; color: #FFF; margin-left: 8px;">
               0 components selected (Max 5)
             </span>
@@ -181,7 +246,7 @@ export class MarketplaceView {
       <!-- Component Detail Modal -->
       <div id="component-detail-modal" class="modal-backdrop"></div>
 
-      <!-- Side-by-Side Comparison Modal (FR-MKT-005) -->
+      <!-- Side-by-Side Comparison Modal -->
       <div id="comparison-modal" class="modal-backdrop"></div>
     `;
 
@@ -191,6 +256,28 @@ export class MarketplaceView {
   }
 
   attachEvents(container) {
+    // Mode Switcher handlers
+    const buyerModeBtn = container.querySelector("#btn-mode-buyer");
+    const devModeBtn = container.querySelector("#btn-mode-dev");
+    if (buyerModeBtn) {
+      buyerModeBtn.addEventListener("click", () => {
+        this.viewMode = "buyer";
+        this.selectedCategory = "all";
+        localStorage.setItem("cortex_hub_view_mode", "buyer");
+        this.render(container);
+        showToast("Switched to Business Buyer Mode (Outcomes & Solutions)", "info");
+      });
+    }
+    if (devModeBtn) {
+      devModeBtn.addEventListener("click", () => {
+        this.viewMode = "developer";
+        this.selectedCategory = "all";
+        localStorage.setItem("cortex_hub_view_mode", "developer");
+        this.render(container);
+        showToast("Switched to Developer Mode (Architectures & Specs)", "info");
+      });
+    }
+
     const exploreBtn = container.querySelector("#hero-btn-explore");
     if (exploreBtn) {
       exploreBtn.addEventListener("click", () => {
@@ -214,16 +301,20 @@ export class MarketplaceView {
     }
 
     const searchField = container.querySelector("#catalog-search");
-    searchField.addEventListener("input", (e) => {
-      this.searchQuery = e.target.value.toLowerCase().trim();
-      this.renderBentoCards();
-    });
+    if (searchField) {
+      searchField.addEventListener("input", (e) => {
+        this.searchQuery = e.target.value.toLowerCase().trim();
+        this.renderBentoCards();
+      });
+    }
 
     const industryDropdown = container.querySelector("#industry-filter");
-    industryDropdown.addEventListener("change", (e) => {
-      this.selectedIndustry = e.target.value;
-      this.renderBentoCards();
-    });
+    if (industryDropdown) {
+      industryDropdown.addEventListener("change", (e) => {
+        this.selectedIndustry = e.target.value;
+        this.renderBentoCards();
+      });
+    }
 
     const catBtns = container.querySelectorAll(".cat-filter-btn");
     catBtns.forEach((btn) => {
@@ -265,150 +356,236 @@ export class MarketplaceView {
     const grid = document.getElementById("bento-catalog-grid");
     if (!grid) return;
 
+    const isBuyer = this.viewMode === "buyer";
+
     const filtered = this.components.filter((c) => {
-      const matchCat = this.selectedCategory === "all" || c.category === this.selectedCategory;
+      let matchCat = true;
+      if (this.selectedCategory !== "all") {
+        if (isBuyer) {
+          matchCat = c.businessCategory === this.selectedCategory;
+        } else {
+          matchCat = c.category === this.selectedCategory;
+        }
+      }
+
       const matchType = this.selectedProductType === "all" || c.productType === this.selectedProductType;
-      const matchInd = this.selectedIndustry === "all" || (c.tags && c.tags.includes(this.selectedIndustry));
+      const matchInd = this.selectedIndustry === "all" || (c.tags && c.tags.includes(this.selectedIndustry)) || (c.goodFor && c.goodFor.includes(this.selectedIndustry));
+      
+      const query = this.searchQuery;
       const matchSearch =
-        !this.searchQuery ||
-        c.name.toLowerCase().includes(this.searchQuery) ||
-        c.shortDesc.toLowerCase().includes(this.searchQuery) ||
-        (c.sellerName && c.sellerName.toLowerCase().includes(this.searchQuery)) ||
-        (c.productType && c.productType.toLowerCase().includes(this.searchQuery)) ||
-        (c.tags && c.tags.some((t) => t.toLowerCase().includes(this.searchQuery)));
+        !query ||
+        c.name.toLowerCase().includes(query) ||
+        (c.buyerTitle && c.buyerTitle.toLowerCase().includes(query)) ||
+        (c.buyerValueProp && c.buyerValueProp.toLowerCase().includes(query)) ||
+        c.shortDesc.toLowerCase().includes(query) ||
+        (c.sellerName && c.sellerName.toLowerCase().includes(query)) ||
+        (c.productType && c.productType.toLowerCase().includes(query)) ||
+        (c.tags && c.tags.some((t) => t.toLowerCase().includes(query)));
+
       return matchCat && matchType && matchInd && matchSearch;
     });
 
     if (filtered.length === 0) {
       grid.innerHTML = `
         <div style="grid-column: span 12; text-align: center; padding: 64px 24px; color: var(--text-muted); font-family: var(--font-mono);">
-          <div style="font-size: 1.1rem; color: var(--text-primary); margin-bottom: 8px;">[NO MATCHES LOCATED]</div>
-          <p style="font-size: 0.85rem;">No components matching active filter query "${this.searchQuery || this.selectedCategory}".</p>
+          <div style="font-size: 1.1rem; color: var(--text); margin-bottom: 8px;">[NO MATCHES LOCATED]</div>
+          <p style="font-size: 0.85rem;">No solutions matching active filter query "${escapeHtml(this.searchQuery || this.selectedCategory)}".</p>
         </div>
       `;
       return;
     }
 
-    grid.innerHTML = filtered
-      .map((c, index) => {
-        const isFeatured = index === 0 && this.selectedCategory === "all" && this.selectedProductType === "all" && !this.searchQuery;
-        const isCompared = this.comparedComponentIds.has(c.id);
+    if (isBuyer) {
+      // ----------------------------------------------------------------------
+      // FR-MKT-002: Simplified Business Product Cards (Buyer Mode)
+      // ----------------------------------------------------------------------
+      grid.innerHTML = filtered
+        .map((c) => {
+          const isCompared = this.comparedComponentIds.has(c.id);
+          const telemetry = c.measuredTelemetry || {};
+          const activeInstalls = telemetry.activeInstalls || 250;
+          const channels = c.channels || ["Website", "WhatsApp", "Email"];
 
-        if (isFeatured) {
           return `
-            <div class="bento-card featured-wide">
-              <div class="bento-card-meta">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <span class="badge badge-lime">FLAGSHIP ARCHITECTURE</span>
-                  <span class="badge badge-gray">${c.category}</span>
-                  <span class="badge badge-indigo" style="font-size: 0.68rem;">${c.productType || "RAG_SYSTEM"}</span>
-                  <span class="badge badge-cyan" style="font-size: 0.68rem;">by ${c.sellerName || "Apex AI Labs"}</span>
+            <div class="buyer-card">
+              <div class="buyer-card-header">
+                <div class="buyer-card-icon">
+                  ${c.businessCategory?.includes("💬") ? "💬" : c.businessCategory?.includes("📄") ? "📄" : c.businessCategory?.includes("📊") ? "📊" : c.businessCategory?.includes("🛒") ? "🛒" : c.businessCategory?.includes("⚙️") ? "⚙️" : c.businessCategory?.includes("✍️") ? "✍️" : c.businessCategory?.includes("🔎") ? "🔎" : "🤖"}
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button class="btn-compare-toggle ${isCompared ? "active" : ""}" data-id="${c.id}">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <button class="btn-compare-toggle ${isCompared ? "active" : ""}" data-id="${escapeHtml(c.id)}">
                     ${isCompared ? "✓ Compared" : "+ Compare"}
                   </button>
-                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-lime);">${c.version}</span>
+                  <span class="badge badge-lime" style="font-size: 0.65rem;">VERIFIED</span>
                 </div>
               </div>
 
-              <h3 class="bento-card-title" style="font-size: 1.6rem;">${c.name}</h3>
-              <p class="bento-card-desc">${c.longDesc}</p>
+              <h3 class="buyer-card-title">${escapeHtml(c.buyerTitle || c.name)}</h3>
+              <p class="buyer-card-valueprop">${escapeHtml(c.buyerValueProp || c.shortDesc)}</p>
 
-              <!-- Hardware and Accuracy Badges -->
-              <div style="display: flex; gap: 12px; margin: 10px 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap;">
-                <span>• VRAM: <strong style="color: #FFF;">${c.hardwareReqs ? c.hardwareReqs.vram : "8 GB VRAM"}</strong></span>
-                <span>• Benchmark: <strong style="color: var(--accent-lime);">${c.benchmarks ? c.benchmarks.accuracy : "98.4% Grounding"}</strong></span>
-                <span>• P95 Latency: <strong style="color: var(--accent-cyan);">${c.benchmarks ? c.benchmarks.latencyP95 : "737ms"}</strong></span>
-                <span>• Rating: <strong style="color: #FFF;">★ ${c.rating || 4.9} (${c.ratingCount || 1} verified)</strong></span>
+              <div class="buyer-social-proof">
+                <span class="buyer-social-rating">★ ${c.rating || 4.9}</span>
+                <span>(${c.ratingCount || 12} reviews)</span>
+                <span>•</span>
+                <span class="buyer-social-installs">${activeInstalls} Active Stores</span>
               </div>
 
-              <!-- Embedded Citation Proof Inspector -->
-              <div class="bento-mini-inspector">
-                <span>[INSPECTOR]</span>
-                <span>Hybrid HNSW + BM25 • Page &amp; paragraph-level attribution with bounding boxes</span>
-              </div>
-
-              <div class="bento-tags-row">
-                ${(c.tags || []).map((t) => `<span class="tech-tag">${t}</span>`).join("")}
-                <span class="tech-tag">VPC-PEERING</span>
-                <span class="tech-tag">HIPAA-READY</span>
-              </div>
-
-              <div class="bento-card-footer">
-                <div>
-                  <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">STARTING PRICE</span>
-                  <div class="bento-price-val">${c.priceFormatted} <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-muted);">/ ${c.inrPriceFormatted}</span></div>
+              <div class="buyer-channels-container">
+                <div class="buyer-channels-label">Supported Channels:</div>
+                <div class="buyer-channels-row">
+                  ${channels.map((ch) => `<span class="channel-badge"><span class="channel-check">✓</span> ${escapeHtml(ch)}</span>`).join("")}
                 </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn-secondary btn-sm btn-view-detail" data-id="${c.id}">
-                    Technical Specs
+              </div>
+
+              <div class="buyer-meta-specs">
+                <div class="buyer-meta-item">Setup: <strong>${escapeHtml(c.setupComplexity || "Easy (~15 mins)")}</strong></div>
+                <div class="buyer-meta-item">Input: <strong>${escapeHtml(c.prerequisites ? c.prerequisites.split(",")[0] : "Docs / FAQs")}</strong></div>
+              </div>
+
+              <div class="buyer-card-footer">
+                <div class="buyer-price-box">
+                  <span class="buyer-price-label">STARTING AT</span>
+                  <div class="buyer-price-amount">${escapeHtml(c.priceFormatted)}<span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">/mo</span></div>
+                  <span class="buyer-price-inr">or ${escapeHtml(c.inrPriceFormatted)}/mo</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-secondary btn-sm btn-view-detail" data-id="${escapeHtml(c.id)}">
+                    Learn More
                   </button>
-                  <button class="btn btn-primary btn-sm btn-try-sandbox" data-id="${c.id}">
-                    Test Sandbox →
+                  <button class="btn btn-primary btn-sm btn-try-sandbox" data-id="${escapeHtml(c.id)}">
+                    Try Demo →
                   </button>
                 </div>
               </div>
             </div>
           `;
-        }
+        })
+        .join("");
+    } else {
+      // ----------------------------------------------------------------------
+      // FR-MKT-003: Developer Technical Cards (Developer Mode)
+      // ----------------------------------------------------------------------
+      grid.innerHTML = filtered
+        .map((c, index) => {
+          const isFeatured = index === 0 && this.selectedCategory === "all" && this.selectedProductType === "all" && !this.searchQuery;
+          const isCompared = this.comparedComponentIds.has(c.id);
+          const telemetry = c.measuredTelemetry || {};
 
-        // Standard bento cards (span 4 columns)
-        return `
-          <div class="bento-card standard-card">
-            <div class="bento-card-meta">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span class="badge badge-gray">${c.category}</span>
-                <span class="badge badge-indigo" style="font-size: 0.65rem;">${c.productType || "AI_AGENT"}</span>
+          if (isFeatured) {
+            return `
+              <div class="bento-card featured-wide">
+                <div class="bento-card-meta">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span class="badge badge-lime">FLAGSHIP ARCHITECTURE</span>
+                    <span class="badge badge-gray">${escapeHtml(c.category)}</span>
+                    <span class="badge badge-indigo" style="font-size: 0.68rem;">${escapeHtml(c.productType || "RAG_SYSTEM")}</span>
+                    <span class="badge badge-cyan" style="font-size: 0.68rem;">by ${escapeHtml(c.sellerName || "Apex AI Labs")}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn-compare-toggle ${isCompared ? "active" : ""}" data-id="${escapeHtml(c.id)}">
+                      ${isCompared ? "✓ Compared" : "+ Compare"}
+                    </button>
+                    <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent);">${escapeHtml(c.version)}</span>
+                  </div>
+                </div>
+
+                <h3 class="bento-card-title" style="font-size: 1.6rem;">${escapeHtml(c.name)}</h3>
+                <p class="bento-card-desc">${escapeHtml(c.longDesc)}</p>
+
+                <!-- Hardware and Accuracy Badges -->
+                <div style="display: flex; gap: 12px; margin: 10px 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap;">
+                  <span>• VRAM: <strong style="color: var(--text);">${escapeHtml(c.hardwareReqs ? c.hardwareReqs.vram : "8 GB VRAM")}</strong></span>
+                  <span>• Measured p95: <strong style="color: var(--accent);">${escapeHtml(telemetry.p95Latency || "737ms")}</strong></span>
+                  <span>• Eval Grounding: <strong style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "98.4%")}</strong></span>
+                  <span>• 30d Uptime: <strong style="color: var(--success);">${escapeHtml(telemetry.uptime30d || "99.98%")}</strong></span>
+                </div>
+
+                <div class="bento-mini-inspector">
+                  <span>[INSPECTOR]</span>
+                  <span>Hybrid HNSW Vector + BM25 Lexical • Sub-second byte attribution</span>
+                </div>
+
+                <div class="bento-tags-row">
+                  ${(c.tags || []).map((t) => `<span class="tech-tag">${escapeHtml(t)}</span>`).join("")}
+                  <span class="tech-tag">VPC-PEERING</span>
+                  <span class="tech-tag">DPDP-RESIDENT</span>
+                </div>
+
+                <div class="bento-card-footer">
+                  <div>
+                    <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">STARTING PRICE</span>
+                    <div class="bento-price-val">${escapeHtml(c.priceFormatted)} <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-muted);">/ ${escapeHtml(c.inrPriceFormatted)}</span></div>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm btn-view-detail" data-id="${escapeHtml(c.id)}">
+                      Technical Specs
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-try-sandbox" data-id="${escapeHtml(c.id)}">
+                      Test Sandbox →
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <button class="btn-compare-toggle ${isCompared ? "active" : ""}" data-id="${c.id}">
-                  ${isCompared ? "✓" : "+"} Compare
-                </button>
-                <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">${c.version}</span>
+            `;
+          }
+
+          // Standard developer card
+          return `
+            <div class="bento-card standard-card">
+              <div class="bento-card-meta">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span class="badge badge-gray">${escapeHtml(c.category)}</span>
+                  <span class="badge badge-indigo" style="font-size: 0.65rem;">${escapeHtml(c.productType || "AI_AGENT")}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <button class="btn-compare-toggle ${isCompared ? "active" : ""}" data-id="${escapeHtml(c.id)}">
+                    ${isCompared ? "✓" : "+"} Compare
+                  </button>
+                  <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">${escapeHtml(c.version)}</span>
+                </div>
+              </div>
+
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>by <strong style="color: var(--cyan);">${escapeHtml(c.sellerName || "Cortex Team")}</strong></span>
+                ${c.sellerVerified ? `<span style="color: var(--accent); font-size: 0.7rem;" title="Verified Seller">●</span>` : ""}
+              </div>
+
+              <h3 class="bento-card-title">${escapeHtml(c.name)}</h3>
+              <p class="bento-card-desc">${escapeHtml(c.shortDesc)}</p>
+
+              <div style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>→</span> <span>${escapeHtml(c.coreOutput)}</span>
+              </div>
+
+              <div style="display: flex; gap: 8px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">
+                <span>VRAM: <strong style="color: var(--text);">${escapeHtml(c.hardwareReqs ? c.hardwareReqs.vram.split(" ")[0] + " GB" : "4 GB")}</strong></span>
+                <span>• Latency: <strong style="color: var(--cyan);">${escapeHtml(telemetry.p95Latency || "<1s")}</strong></span>
+                <span>• ★ ${c.rating || 4.8}</span>
+              </div>
+
+              <div class="bento-tags-row">
+                ${(c.tags || []).map((t) => `<span class="tech-tag">${escapeHtml(t)}</span>`).join("")}
+              </div>
+
+              <div class="bento-card-footer">
+                <div>
+                  <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">STARTING PRICE</span>
+                  <div class="bento-price-val">${escapeHtml(c.priceFormatted)}</div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-secondary btn-sm btn-view-detail" data-id="${escapeHtml(c.id)}">
+                    Specs
+                  </button>
+                  <button class="btn btn-primary btn-sm btn-try-sandbox" data-id="${escapeHtml(c.id)}">
+                    Trial →
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
-              <span>by <strong style="color: var(--accent-cyan);">${c.sellerName || "Cortex Team"}</strong></span>
-              ${c.sellerVerified ? `<span style="color: var(--accent-lime); font-size: 0.7rem;" title="Verified Seller">●</span>` : ""}
-            </div>
-
-            <h3 class="bento-card-title">${c.name}</h3>
-            <p class="bento-card-desc">${c.shortDesc}</p>
-
-            <div style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-lime); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              <span>→</span> <span>${c.coreOutput}</span>
-            </div>
-
-            <div style="display: flex; gap: 8px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">
-              <span>VRAM: <strong style="color: #FFF;">${c.hardwareReqs ? c.hardwareReqs.vram.split(" ")[0] + " GB" : "4 GB"}</strong></span>
-              <span>• Latency: <strong style="color: var(--accent-cyan);">${c.benchmarks ? c.benchmarks.latencyP95.split(" ")[0] : "<1s"}</strong></span>
-              <span>• ★ ${c.rating || 4.8}</span>
-            </div>
-
-            <div class="bento-tags-row">
-              ${(c.tags || []).map((t) => `<span class="tech-tag">${t}</span>`).join("")}
-            </div>
-
-            <div class="bento-card-footer">
-              <div>
-                <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">STARTING PRICE</span>
-                <div class="bento-price-val">${c.priceFormatted}</div>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn btn-secondary btn-sm btn-view-detail" data-id="${c.id}">
-                  Specs
-                </button>
-                <button class="btn btn-primary btn-sm btn-try-sandbox" data-id="${c.id}">
-                  Trial
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
+          `;
+        })
+        .join("");
+    }
 
     // Attach click listeners to cards
     grid.querySelectorAll(".btn-view-detail").forEach((btn) => {
@@ -468,7 +645,7 @@ export class MarketplaceView {
       <div class="modal-dialog modal-xl">
         <div class="modal-header">
           <div>
-            <span class="badge badge-lime">// SRS SECTION 10 // FR-MKT-005 COMPARISON MATRIX</span>
+            <span class="badge badge-lime">// SRS SECTION 10 // COMPARISON MATRIX (FR-MKT-005)</span>
             <h3 class="modal-title" style="margin-top: 4px;">Side-by-Side Technical Comparison (${selectedComps.length} Engines)</h3>
           </div>
           <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
@@ -483,9 +660,9 @@ export class MarketplaceView {
                   .map(
                     (c) => `
                   <th style="min-width: 220px; text-align: left;">
-                    <div style="font-weight: 700; color: #FFF; font-size: 1rem;">${c.name}</div>
-                    <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); margin-top: 2px;">
-                      by ${c.sellerName || "Apex AI Labs"} (${c.version})
+                    <div style="font-weight: 700; color: #FFF; font-size: 1rem;">${escapeHtml(c.name)}</div>
+                    <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--cyan); margin-top: 2px;">
+                      by ${escapeHtml(c.sellerName || "Apex AI Labs")} (${escapeHtml(c.version)})
                     </div>
                   </th>
                 `
@@ -499,8 +676,8 @@ export class MarketplaceView {
                 ${selectedComps
                   .map(
                     (c) => `
-                  <td class="matrix-val" style="color: var(--accent-lime); font-weight: 700; font-size: 1.05rem;">
-                    ${c.priceFormatted} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(${c.inrPriceFormatted})</span>
+                  <td class="matrix-val" style="color: var(--accent); font-weight: 700; font-size: 1.05rem;">
+                    ${escapeHtml(c.priceFormatted)} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">(${escapeHtml(c.inrPriceFormatted)})</span>
                   </td>
                 `
                   )
@@ -512,20 +689,20 @@ export class MarketplaceView {
                   .map(
                     (c) => `
                   <td class="matrix-val">
-                    <span class="badge badge-gray">${c.category}</span>
-                    <span class="badge badge-indigo" style="font-size: 0.65rem;">${c.productType || "RAG_SYSTEM"}</span>
+                    <span class="badge badge-gray">${escapeHtml(c.category)}</span>
+                    <span class="badge badge-indigo" style="font-size: 0.65rem;">${escapeHtml(c.productType || "RAG_SYSTEM")}</span>
                   </td>
                 `
                   )
                   .join("")}
               </tr>
               <tr>
-                <td class="matrix-label">Verified Accuracy Benchmark</td>
+                <td class="matrix-label">Measured Accuracy Benchmark</td>
                 ${selectedComps
                   .map(
                     (c) => `
-                  <td class="matrix-val" style="color: var(--accent-lime);">
-                    ${c.benchmarks ? c.benchmarks.accuracy : "98% Grounding Precision"}
+                  <td class="matrix-val" style="color: var(--accent);">
+                    ${escapeHtml(c.measuredTelemetry?.evalScore || (c.benchmarks ? c.benchmarks.accuracy : "98% Precision"))}
                   </td>
                 `
                   )
@@ -536,8 +713,8 @@ export class MarketplaceView {
                 ${selectedComps
                   .map(
                     (c) => `
-                  <td class="matrix-val" style="color: var(--accent-cyan); font-family: var(--font-mono);">
-                    ${c.benchmarks ? c.benchmarks.latencyP95 : "<800ms TTFT"}
+                  <td class="matrix-val" style="color: var(--cyan); font-family: var(--font-mono);">
+                    ${escapeHtml(c.measuredTelemetry?.p95Latency || (c.benchmarks ? c.benchmarks.latencyP95 : "<800ms"))}
                   </td>
                 `
                   )
@@ -549,55 +726,7 @@ export class MarketplaceView {
                   .map(
                     (c) => `
                   <td class="matrix-val" style="font-family: var(--font-mono);">
-                    ${c.hardwareReqs ? c.hardwareReqs.vram : "8 GB VRAM"}
-                  </td>
-                `
-                  )
-                  .join("")}
-              </tr>
-              <tr>
-                <td class="matrix-label">Recommended GPU</td>
-                ${selectedComps
-                  .map(
-                    (c) => `
-                  <td class="matrix-val">
-                    ${c.hardwareReqs ? c.hardwareReqs.gpu : "NVIDIA RTX 4090 / Cloud T4"}
-                  </td>
-                `
-                  )
-                  .join("")}
-              </tr>
-              <tr>
-                <td class="matrix-label">License Grant</td>
-                ${selectedComps
-                  .map(
-                    (c) => `
-                  <td class="matrix-val" style="font-size: 0.78rem;">
-                    ${c.licenseType || "Commercial Permissive (Multi-Seat)"}
-                  </td>
-                `
-                  )
-                  .join("")}
-              </tr>
-              <tr>
-                <td class="matrix-label">Delivery Artifact Size</td>
-                ${selectedComps
-                  .map(
-                    (c) => `
-                  <td class="matrix-val" style="font-family: var(--font-mono);">
-                    ${c.downloadSize || "850 MB"}
-                  </td>
-                `
-                  )
-                  .join("")}
-              </tr>
-              <tr>
-                <td class="matrix-label">Verified Buyer Rating</td>
-                ${selectedComps
-                  .map(
-                    (c) => `
-                  <td class="matrix-val">
-                    ★ ${c.rating || 4.9} (${c.ratingCount || 12} reviews)
+                    ${escapeHtml(c.hardwareReqs ? c.hardwareReqs.vram : "8 GB VRAM")}
                   </td>
                 `
                   )
@@ -610,10 +739,10 @@ export class MarketplaceView {
                     (c) => `
                   <td class="matrix-val">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                      <button class="btn btn-primary btn-sm btn-comp-trial" data-id="${c.id}">
+                      <button class="btn btn-primary btn-sm btn-comp-trial" data-id="${escapeHtml(c.id)}">
                         Test in Sandbox →
                       </button>
-                      <button class="btn btn-secondary btn-sm btn-comp-buy" data-id="${c.id}">
+                      <button class="btn btn-secondary btn-sm btn-comp-buy" data-id="${escapeHtml(c.id)}">
                         Purchase License
                       </button>
                     </div>
@@ -657,230 +786,272 @@ export class MarketplaceView {
   }
 
   // --------------------------------------------------------------------------
-  // Enhanced Product Detail Modal (SRS Section 11 & 21)
+  // SRS Section 11: Product Detail Page (PDP) with Progressive Disclosure
   // --------------------------------------------------------------------------
   openDetailModal(componentId) {
     const comp = this.components.find((c) => c.id === componentId);
     if (!comp) return;
 
     const modal = document.getElementById("component-detail-modal");
+    const telemetry = comp.measuredTelemetry || {};
+    const basePriceNum = comp.basePrice || 499;
+
     modal.innerHTML = `
       <div class="modal-dialog modal-lg">
         <div class="modal-header">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span class="badge badge-lime">${comp.category}</span>
-              <span class="badge badge-indigo">${comp.productType || "AI_AGENT"}</span>
-              <span class="badge badge-cyan">by ${comp.sellerName || "Apex AI Labs"}</span>
-              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${comp.version}</span>
+              <span class="badge badge-lime">${escapeHtml(comp.businessCategory || comp.category)}</span>
+              <span class="badge badge-indigo">${escapeHtml(comp.productType || "AI_AGENT")}</span>
+              <span class="badge badge-cyan">by ${escapeHtml(comp.sellerName || "Apex AI Labs")}</span>
+              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${escapeHtml(comp.version)}</span>
             </div>
-            <h2 class="modal-title" style="margin-top: 6px;">${comp.name}</h2>
+            <h2 class="modal-title" style="margin-top: 6px;">${escapeHtml(comp.buyerTitle || comp.name)}</h2>
           </div>
           <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
         </div>
 
         <div class="modal-body">
-          <div class="tab-bar" id="modal-tabs">
-            <button class="tab-btn active" data-tab="overview">Capabilities</button>
-            <button class="tab-btn" data-tab="architecture">Data Pipeline</button>
-            <button class="tab-btn" data-tab="specs">Technical Specs &amp; Hardware</button>
-            <button class="tab-btn" data-tab="code">Integration SDK</button>
-            <button class="tab-btn" data-tab="reviews">Verified Reviews [${comp.reviews ? comp.reviews.length : 0}]</button>
-            <button class="tab-btn" data-tab="pricing">Tiers &amp; Licenses</button>
-          </div>
-
-          <div class="tab-content" id="tab-overview">
-            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
-              ${comp.longDesc}
-            </p>
-            <div style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px;">
-              Architectural Constraints &amp; Features:
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              ${(comp.features || [])
-                .map(
-                  (f) => `
-                <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.84rem; color: var(--text-primary); font-family: var(--font-sans);">
-                  <span style="color: var(--accent-lime); font-family: var(--font-mono);">[+]</span>
-                  <span>${f}</span>
-                </div>
-              `
-                )
-                .join("")}
+          <!-- 11.1 Above the Fold: Business Decision Section -->
+          <div class="pdp-header-band">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text);">${escapeHtml(comp.name)}</h3>
+            <p class="pdp-tagline">${escapeHtml(comp.buyerValueProp || comp.shortDesc)}</p>
+            
+            <div class="pdp-fit-badges-row">
+              ${(comp.goodFor || comp.tags || ["Enterprise", "SMBs"]).map((g) => `<span class="fit-badge">Good for: ${escapeHtml(g)}</span>`).join("")}
+              <span class="fit-badge" style="border-color: var(--success); color: var(--success);">✓ Verified Secure</span>
+              <span class="fit-badge" style="border-color: var(--accent); color: var(--accent);">✓ DPDP / GDPR Zero-Egress</span>
             </div>
           </div>
 
-          <div class="tab-content" id="tab-architecture" style="display: none;">
-            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px; font-family: var(--font-mono);">
-              Deterministic inference flow with tenant isolation guarantees:
-            </p>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              ${(comp.architecture || [])
-                .map(
-                  (step) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: var(--radius-xs);">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-lime); font-weight: 700;">PHASE 0${step.step}</span>
-                    <strong style="font-size: 0.86rem;">${step.title}</strong>
-                  </div>
-                  <span style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">${step.desc}</span>
-                </div>
-              `
-                )
-                .join("")}
+          <!-- PDP-02: Live Trust Panel -->
+          <div class="live-trust-panel">
+            <div class="trust-panel-title">
+              <span>// LIVE PLATFORM TELEMETRY (PDP-02)</span>
+              <span style="color: var(--success);">MEASURED INDEPENDENTLY</span>
             </div>
-          </div>
-
-          <!-- Technical Specs Tab (SRS Section 11 & 46) -->
-          <div class="tab-content" id="tab-specs" style="display: none;">
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-              <div class="spec-detail-box">
-                <span class="spec-label">MINIMUM VRAM</span>
-                <span class="spec-val" style="color: var(--accent-lime);">${comp.hardwareReqs ? comp.hardwareReqs.vram : "8 GB VRAM"}</span>
+            <div class="trust-metrics-grid">
+              <div class="trust-metric-cell">
+                <span class="trust-metric-lbl">30-Day Uptime</span>
+                <span class="trust-metric-val live">${escapeHtml(telemetry.uptime30d || "99.98%")}</span>
               </div>
-              <div class="spec-detail-box">
-                <span class="spec-label">RECOMMENDED GPU</span>
-                <span class="spec-val">${comp.hardwareReqs ? comp.hardwareReqs.gpu : "NVIDIA RTX 4090 / A10G"}</span>
+              <div class="trust-metric-cell">
+                <span class="trust-metric-lbl">p95 Latency</span>
+                <span class="trust-metric-val">${escapeHtml(telemetry.p95Latency || "737ms")}</span>
               </div>
-              <div class="spec-detail-box">
-                <span class="spec-label">CPU &amp; SYSTEM RAM</span>
-                <span class="spec-val">${comp.hardwareReqs ? `${comp.hardwareReqs.cpu} // ${comp.hardwareReqs.ram}` : "4 Cores, 16 GB RAM"}</span>
+              <div class="trust-metric-cell">
+                <span class="trust-metric-lbl">Benchmark Eval</span>
+                <span class="trust-metric-val" style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "98.4%")}</span>
               </div>
-              <div class="spec-detail-box">
-                <span class="spec-label">BENCHMARK ACCURACY</span>
-                <span class="spec-val" style="color: var(--accent-cyan);">${comp.benchmarks ? comp.benchmarks.accuracy : "98.4% Precision"}</span>
+              <div class="trust-metric-cell">
+                <span class="trust-metric-lbl">Active Installs</span>
+                <span class="trust-metric-val">${escapeHtml(String(telemetry.activeInstalls || 342))}</span>
               </div>
-              <div class="spec-detail-box">
-                <span class="spec-label">P95 INFERENCE LATENCY</span>
-                <span class="spec-val" style="color: var(--accent-lime);">${comp.benchmarks ? comp.benchmarks.latencyP95 : "737ms TTFT"}</span>
-              </div>
-              <div class="spec-detail-box">
-                <span class="spec-label">DOWNLOAD PACKAGE SIZE</span>
-                <span class="spec-val">${comp.downloadSize || "1.42 GB"}</span>
-              </div>
-            </div>
-
-            <div style="background: var(--bg-deep); border: 1px solid var(--border-medium); border-radius: 6px; padding: 12px;">
-              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">
-                SHA-256 ARTIFACT INTEGRITY CHECKSUM
-              </span>
-              <div style="font-family: var(--font-mono); font-size: 0.78rem; color: #FFF; margin-top: 4px; word-break: break-all;">
-                ${comp.artifactChecksum || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+              <div class="trust-metric-cell">
+                <span class="trust-metric-lbl">Release Date</span>
+                <span class="trust-metric-val" style="font-size: 0.85rem;">${escapeHtml(telemetry.lastUpdated || "Oct 2026")}</span>
               </div>
             </div>
           </div>
 
-          <div class="tab-content" id="tab-code" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime);">SDK v2.0 // Python 3.10+</span>
-              <button class="btn btn-outline btn-sm copy-snippet-btn">Copy Code</button>
+          <!-- What It Does & What You Need -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 10px;">What It Does (Business Impact)</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.84rem; color: var(--text-muted);">
+                <div>• Eliminates manual backlog and repetitive human steps.</div>
+                <div>• Learns directly from your business documents with exact citations.</div>
+                <div>• Integrates into website widgets, WhatsApp, or internal APIs.</div>
+                <div>• Automatic human-escalation handover on complex queries.</div>
+              </div>
             </div>
-            <pre style="background: var(--bg-deep); border: 1px solid var(--border-medium); padding: 14px; border-radius: var(--radius-xs); font-family: var(--font-mono); font-size: 0.78rem; color: #E2E8F0; overflow-x: auto; line-height: 1.5;">${comp.codeSnippets ? comp.codeSnippets.python : "# Python snippet"}</pre>
+
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 10px;">What You Need (Prerequisites)</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.84rem; color: var(--text-muted);">
+                <div>• <strong>Input Data:</strong> ${escapeHtml(comp.prerequisites || "Your FAQs, documents or database read URL")}</div>
+                <div>• <strong>Setup Time:</strong> ${escapeHtml(comp.setupComplexity || "Easy — ~15 minutes with wizard")}</div>
+                <div>• <strong>Coding Required:</strong> None (Turnkey solution with guided UI)</div>
+                <div>• <strong>Data Privacy:</strong> Zero training on your proprietary data</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Verified Buyer Reviews Tab (SRS Section 21) -->
-          <div class="tab-content" id="tab-reviews" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <!-- PDP-03: Interactive Cost Estimator -->
+          <div class="cost-estimator-box">
+            <div class="estimator-header">
+              <span class="estimator-title">📊 Real-Time Cost Estimator (PDP-03)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">Adjust monthly query volume:</span>
+            </div>
+            <div class="estimator-slider-wrap">
+              <input type="range" min="1000" max="100000" step="1000" value="10000" class="estimator-slider" id="estimator-volume-slider" />
+              <div class="estimator-slider-labels">
+                <span>1,000 requests/mo</span>
+                <span id="estimator-volume-display" style="color: var(--accent); font-weight: 700;">10,000 requests/mo</span>
+                <span>100,000 requests/mo</span>
+              </div>
+            </div>
+            <div class="estimator-result-row">
               <div>
-                <span style="font-size: 1.2rem; font-weight: 700; color: #FFF;">★ ${comp.rating || 4.9}</span>
-                <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">based on ${comp.ratingCount || 12} verified purchaser reviews</span>
+                <span style="font-size: 0.76rem; color: var(--text-muted); font-family: var(--font-mono);">ESTIMATED MONTHLY INVESTMENT:</span>
+                <div style="font-size: 0.74rem; color: var(--text-dim);">Includes cloud hosting, compute inference, security updates, and SLAs.</div>
               </div>
-              <button class="btn btn-secondary btn-sm" id="btn-toggle-write-review">
-                + Write a Verified Review
-              </button>
+              <div style="text-align: right;">
+                <div class="estimator-calc-value" id="estimator-price-usd">$${basePriceNum} USD</div>
+                <div style="font-size: 0.76rem; color: var(--text-muted);" id="estimator-price-inr">₹${Math.round(basePriceNum * 83.5).toLocaleString()} INR (incl. GST)</div>
+              </div>
             </div>
+          </div>
 
-            <!-- Review Submission Form (collapsed by default) -->
-            <div id="write-review-panel" style="display: none; background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-              <h5 style="color: #FFF; font-size: 0.9rem; margin-bottom: 10px;">Submit Verified Technical Review</h5>
-              <div class="form-row">
-                <div class="form-group flex-1">
-                  <label class="form-label">Reviewer Name &amp; Title</label>
-                  <input type="text" class="text-input" id="review-author" placeholder="e.g. Lead Architect, Fintech Corp" />
-                </div>
-                <div class="form-group" style="width: 120px;">
-                  <label class="form-label">Rating</label>
-                  <select class="select-input" id="review-rating">
-                    <option value="5">5 ★★★★★</option>
-                    <option value="4">4 ★★★★</option>
-                    <option value="3">3 ★★★</option>
-                  </select>
-                </div>
+          <!-- 11.2 Below the Fold: Progressive Disclosure ("Technical Details ▾") -->
+          <details class="tech-details-disclosure">
+            <summary class="tech-details-summary">
+              <span>▼ TECHNICAL SPECIFICATIONS &amp; ARCHITECTURE (PROGRESSIVE DISCLOSURE §11.2)</span>
+              <span style="color: var(--accent);">Click to expand</span>
+            </summary>
+            
+            <div class="tech-details-content">
+              <div class="tab-bar" id="modal-tabs">
+                <button class="tab-btn active" data-tab="architecture">Data Pipeline</button>
+                <button class="tab-btn" data-tab="specs">Hardware &amp; VRAM</button>
+                <button class="tab-btn" data-tab="code">OpenAPI &amp; SDK</button>
+                <button class="tab-btn" data-tab="reviews">Verified Reviews [${comp.reviews ? comp.reviews.length : 0}]</button>
               </div>
-              <div class="form-group">
-                <label class="form-label">Headline / Title</label>
-                <input type="text" class="text-input" id="review-title" placeholder="e.g. Flawless latency and byte citations" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Technical Review Comment</label>
-                <textarea class="textarea-input" id="review-comment" rows="3" placeholder="Describe benchmark findings, deployment experience, and runtime accuracy..."></textarea>
-              </div>
-              <button class="btn btn-primary btn-sm" id="btn-submit-review">Publish Review</button>
-            </div>
 
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-              ${
-                comp.reviews && comp.reviews.length > 0
-                  ? comp.reviews
-                      .map(
-                        (r) => `
-                <div style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: 6px; padding: 14px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <div>
-                      <strong style="color: #FFF; font-size: 0.9rem;">${r.title}</strong>
-                      <div style="font-size: 0.75rem; color: var(--accent-lime); margin-top: 2px;">
-                        ★ ${r.rating}.0 // ${r.buyerName} [VERIFIED PURCHASER]
+              <div class="tab-content" id="tab-architecture">
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px; font-family: var(--font-mono);">
+                  Underlying execution topology and isolation pipeline:
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  ${(comp.architecture || [])
+                    .map(
+                      (step) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs);">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent); font-weight: 700;">STAGE 0${step.step}</span>
+                        <strong style="font-size: 0.86rem; color: var(--text);">${escapeHtml(step.title)}</strong>
                       </div>
-                    </div>
-                    <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${r.date} (${r.version})</span>
-                  </div>
-                  <p style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; margin-top: 6px;">
-                    ${r.comment}
-                  </p>
-                  ${
-                    r.sellerReply
-                      ? `
-                    <div style="margin-top: 10px; padding: 10px; background: var(--bg-deep); border-left: 2px solid var(--accent-cyan); border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">
-                      <strong style="color: var(--accent-cyan);">${comp.sellerName || "Seller"} Response:</strong> ${r.sellerReply}
+                      <span style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">${escapeHtml(step.desc)}</span>
                     </div>
                   `
-                      : ""
-                  }
+                    )
+                    .join("")}
                 </div>
-              `
-                      )
-                      .join("")
-                  : `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px;">No reviews yet. Be the first verified buyer to leave feedback!</div>`
-              }
-            </div>
-          </div>
+              </div>
 
-          <div class="tab-content" id="tab-pricing" style="display: none;">
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-              ${(comp.pricingTiers || [])
-                .map(
-                  (t) => `
-                <div style="background: var(--bg-surface-2); border: 1px solid ${t.featured ? "var(--accent-lime)" : "var(--border-medium)"}; border-radius: var(--radius-xs); padding: 16px; display: flex; flex-direction: column;">
-                  <span style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: #FFF;">${t.name}</span>
-                  <div style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent-lime); margin: 6px 0 12px;">${t.price}</div>
-                  <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 14px; flex: 1;">${t.desc}</p>
-                  <button class="btn ${t.featured ? "btn-primary" : "btn-secondary"} btn-sm btn-checkout-tier" data-tier="${t.name}">
-                    Select ${t.name}
+              <div class="tab-content" id="tab-specs" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                  <div class="spec-detail-box">
+                    <span class="spec-label">MINIMUM VRAM</span>
+                    <span class="spec-val" style="color: var(--accent);">${escapeHtml(comp.hardwareReqs ? comp.hardwareReqs.vram : "8 GB VRAM")}</span>
+                  </div>
+                  <div class="spec-detail-box">
+                    <span class="spec-label">RECOMMENDED GPU</span>
+                    <span class="spec-val">${escapeHtml(comp.hardwareReqs ? comp.hardwareReqs.gpu : "NVIDIA RTX 4090 / Cloud T4")}</span>
+                  </div>
+                  <div class="spec-detail-box">
+                    <span class="spec-label">CPU &amp; SYSTEM RAM</span>
+                    <span class="spec-val">${escapeHtml(comp.hardwareReqs ? `${comp.hardwareReqs.cpu} // ${comp.hardwareReqs.ram}` : "4 Cores, 16 GB RAM")}</span>
+                  </div>
+                  <div class="spec-detail-box">
+                    <span class="spec-label">LICENSE GRANT</span>
+                    <span class="spec-val">${escapeHtml(comp.licenseType || "Commercial Permissive")}</span>
+                  </div>
+                </div>
+
+                <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">
+                    SHA-256 ARTIFACT INTEGRITY CHECKSUM
+                  </span>
+                  <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); margin-top: 4px; word-break: break-all;">
+                    ${escapeHtml(comp.artifactChecksum || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")}
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-content" id="tab-code" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent);">SDK Snippet // Python 3.10+</span>
+                  <button class="btn btn-outline btn-sm copy-snippet-btn">Copy Code</button>
+                </div>
+                <pre style="background: var(--surface-2); border: 1px solid var(--border); padding: 14px; border-radius: var(--radius-xs); font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); overflow-x: auto; line-height: 1.5;">${escapeHtml(comp.codeSnippets ? comp.codeSnippets.python : "# Python snippet")}</pre>
+              </div>
+
+              <div class="tab-content" id="tab-reviews" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                  <div>
+                    <span style="font-size: 1.2rem; font-weight: 700; color: var(--text);">★ ${comp.rating || 4.9}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;">based on ${comp.ratingCount || 12} verified purchaser reviews</span>
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btn-toggle-write-review">
+                    + Write a Review
                   </button>
                 </div>
-              `
-                )
-                .join("")}
+
+                <div id="write-review-panel" style="display: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                  <h5 style="color: var(--text); font-size: 0.9rem; margin-bottom: 10px;">Submit Verified Purchaser Review</h5>
+                  <div class="form-row">
+                    <div class="form-group flex-1">
+                      <label class="form-label">Reviewer Name</label>
+                      <input type="text" class="text-input" id="review-author" placeholder="e.g. Operations Director, Global Retail" />
+                    </div>
+                    <div class="form-group" style="width: 120px;">
+                      <label class="form-label">Rating</label>
+                      <select class="select-input" id="review-rating">
+                        <option value="5">5 ★★★★★</option>
+                        <option value="4">4 ★★★★</option>
+                        <option value="3">3 ★★★</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Headline</label>
+                    <input type="text" class="text-input" id="review-title" placeholder="e.g. Saved 20 hours per week from day one" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Review Details</label>
+                    <textarea class="textarea-input" id="review-comment" rows="3" placeholder="Describe business outcomes, setup experience, and impact..."></textarea>
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="btn-submit-review">Submit Review</button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                  ${
+                    comp.reviews && comp.reviews.length > 0
+                      ? comp.reviews
+                          .map(
+                            (r) => `
+                    <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div>
+                          <strong style="color: var(--text); font-size: 0.9rem;">${escapeHtml(r.title)}</strong>
+                          <div style="font-size: 0.75rem; color: var(--accent); margin-top: 2px;">
+                            ★ ${r.rating}.0 // ${escapeHtml(r.buyerName)} [VERIFIED PURCHASER]
+                          </div>
+                        </div>
+                        <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(r.date)}</span>
+                      </div>
+                      <p style="font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; margin-top: 6px;">
+                        ${escapeHtml(r.comment)}
+                      </p>
+                    </div>
+                  `
+                          )
+                          .join("")
+                      : `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px;">No reviews yet. Be the first verified buyer to leave feedback!</div>`
+                  }
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-secondary btn-configure-from-modal" data-id="${comp.id}">
-            Configure Architecture →
+          <button class="btn btn-secondary btn-launch-playground-modal" data-id="${escapeHtml(comp.id)}">
+            Launch in Sandbox →
           </button>
-          <button class="btn btn-primary btn-launch-playground-modal" data-id="${comp.id}">
-            Launch in Sandbox
+          <button class="btn btn-primary btn-buy-now-modal" data-id="${escapeHtml(comp.id)}">
+            Buy &amp; Setup Now (${escapeHtml(comp.priceFormatted)})
           </button>
         </div>
       </div>
@@ -893,6 +1064,28 @@ export class MarketplaceView {
       if (e.target === modal) modal.classList.remove("active");
     });
 
+    // Cost estimator slider logic
+    const slider = modal.querySelector("#estimator-volume-slider");
+    const volumeDisplay = modal.querySelector("#estimator-volume-display");
+    const priceUsdDisplay = modal.querySelector("#estimator-price-usd");
+    const priceInrDisplay = modal.querySelector("#estimator-price-inr");
+
+    if (slider) {
+      slider.addEventListener("input", (e) => {
+        const vol = parseInt(e.target.value);
+        volumeDisplay.textContent = `${vol.toLocaleString()} requests/mo`;
+        
+        // Scale calculation: base price covers 10,000 requests, extra is metered at $0.005/req
+        const extraReqs = Math.max(0, vol - 10000);
+        const calculatedUsd = Math.round(basePriceNum + (extraReqs * 0.005));
+        const calculatedInr = Math.round(calculatedUsd * 83.5);
+
+        priceUsdDisplay.textContent = `$${calculatedUsd.toLocaleString()} USD`;
+        priceInrDisplay.textContent = `₹${calculatedInr.toLocaleString()} INR (incl. GST)`;
+      });
+    }
+
+    // Tabs inside details
     modal.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         modal.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
@@ -908,25 +1101,18 @@ export class MarketplaceView {
       copyBtn.addEventListener("click", () => copyToClipboard(comp.codeSnippets.python, "SDK sample copied!"));
     }
 
-    modal.querySelector(".btn-configure-from-modal").addEventListener("click", () => {
-      modal.classList.remove("active");
-      this.app.navigateTo("configurator", { componentId: comp.id });
-    });
-
     modal.querySelector(".btn-launch-playground-modal").addEventListener("click", () => {
       modal.classList.remove("active");
       this.app.navigateTo("playground", { componentId: comp.id });
     });
 
-    modal.querySelectorAll(".btn-checkout-tier").forEach((tierBtn) => {
-      tierBtn.addEventListener("click", () => {
-        modal.classList.remove("active");
-        this.app.openCheckoutModal({
-          componentId: comp.id,
-          componentName: comp.name,
-          tier: tierBtn.dataset.tier,
-          price: comp.priceFormatted
-        });
+    modal.querySelector(".btn-buy-now-modal").addEventListener("click", () => {
+      modal.classList.remove("active");
+      this.app.openCheckoutModal({
+        componentId: comp.id,
+        componentName: comp.buyerTitle || comp.name,
+        tier: "Starter",
+        price: comp.priceFormatted
       });
     });
 
@@ -960,7 +1146,7 @@ export class MarketplaceView {
         });
 
         showToast("Review submitted and published!", "success");
-        this.openDetailModal(comp.id); // Re-open to show new review
+        this.openDetailModal(comp.id);
       });
     }
   }

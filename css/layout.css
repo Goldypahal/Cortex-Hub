@@ -343,3 +343,24 @@ html, body {
   font-weight: 600;
   color: var(--accent-lime);
 }
+
+/* Theme Toggle Button (SRS §6.1) */
+.theme-toggle-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all var(--duration-fast);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}

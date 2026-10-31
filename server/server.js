@@ -14,8 +14,51 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const prisma = new PrismaClient();
 
-app.use(cors());
+// G3 FIX: Restrict CORS to allow-list only. Never use open cors() in production.
+// Add your deployment domain to ALLOWED_ORIGINS in .env
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5000,http://localhost:3000").split(",");
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS: Origin not allowed"));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 app.use(express.json());
+
+// ============================================================================
+// G1 FIX: Authentication & Authorization
+// NOTE: All routes below are currently UNPROTECTED (prototype mode).
+// Phase 0 requirement: add JWT/session middleware before deploying to production.
+// Use Better Auth or Auth.js with Postgres sessions (per SRS v3.0 Section 8.1).
+//
+// Pattern to add when auth is implemented:
+//   app.use('/api/protected', requireAuth, requireRole('ADMIN'));
+//
+// For now, adding a request ID to every request for audit trail support.
+// ============================================================================
+const { randomUUID } = await import('crypto').catch(() => ({ randomUUID: () => Math.random().toString(36) }));
+
+// Request ID middleware (required for audit log, error responses)
+app.use((req, res, next) => {
+  req.requestId = `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
+
+// Security headers (G3 FIX)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 
 // --------------------------------------------------------------------------
 // System Telemetry & Health Check
@@ -48,7 +91,7 @@ app.get("/api/components", async (req, res) => {
     });
     res.json(components);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch components", details: err.message });
+    res.status(500).json({ error: "Failed to fetch components", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -60,7 +103,7 @@ app.get("/api/components/:id", async (req, res) => {
     if (!component) return res.status(404).json({ error: "Component not found" });
     res.json(component);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch component", details: err.message });
+    res.status(500).json({ error: "Failed to fetch component", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -71,7 +114,7 @@ app.post("/api/components", async (req, res) => {
     });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: "Failed to create component", details: err.message });
+    res.status(500).json({ error: "Failed to create component", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -83,7 +126,7 @@ app.put("/api/components/:id", async (req, res) => {
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update component", details: err.message });
+    res.status(500).json({ error: "Failed to update component", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -94,7 +137,7 @@ app.delete("/api/components/:id", async (req, res) => {
     });
     res.json({ success: true, message: `Component ${req.params.id} deleted` });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete component", details: err.message });
+    res.status(500).json({ error: "Failed to delete component", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -108,7 +151,7 @@ app.get("/api/customization-requests", async (req, res) => {
     });
     res.json(requests);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch customization requests", details: err.message });
+    res.status(500).json({ error: "Failed to fetch customization requests", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -140,7 +183,7 @@ app.post("/api/customization-requests", async (req, res) => {
 
     const created = await prisma.customizationRequest.create({
       data: {
-        id: id || `CR-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: id || `CR-${Date.now().toString(36).toUpperCase()}`,
         tenantId: targetTenantId,
         componentId: componentId || "rag-chatbot",
         tenantName: tenantName || "Acme Health Technologies Inc.",
@@ -161,7 +204,7 @@ app.post("/api/customization-requests", async (req, res) => {
 
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: "Failed to submit customization request", details: err.message });
+    res.status(500).json({ error: "Failed to submit customization request", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -194,7 +237,7 @@ app.patch("/api/customization-requests/:id", async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update customization request", details: err.message });
+    res.status(500).json({ error: "Failed to update customization request", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -212,7 +255,7 @@ app.get("/api/tenant", async (req, res) => {
     });
     res.json(tenant);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch tenant info", details: err.message });
+    res.status(500).json({ error: "Failed to fetch tenant info", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -223,7 +266,7 @@ app.get("/api/licenses", async (req, res) => {
     });
     res.json(licenses);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch licenses", details: err.message });
+    res.status(500).json({ error: "Failed to fetch licenses", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -233,7 +276,10 @@ app.post("/api/licenses/checkout", async (req, res) => {
     const defaultTenant = await prisma.tenant.findFirst();
     const tenantId = defaultTenant ? defaultTenant.id : "tnt-8849-acme";
 
-    const generatedLicenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // G2 FIX: CSPRNG for license keys
+    const { randomBytes } = await import('crypto');
+    const licBytes = randomBytes(12).toString('hex').toUpperCase();
+    const generatedLicenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${licBytes.substring(0, 6)}-${licBytes.substring(6, 12)}`;
 
     const createdLicense = await prisma.license.create({
       data: {
@@ -253,7 +299,7 @@ app.post("/api/licenses/checkout", async (req, res) => {
       message: "License provisioned and activated in PostgreSQL"
     });
   } catch (err) {
-    res.status(500).json({ error: "Failed to process license checkout", details: err.message });
+    res.status(500).json({ error: "Failed to process license checkout", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -264,7 +310,7 @@ app.get("/api/api-keys", async (req, res) => {
     });
     res.json(keys);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch API keys", details: err.message });
+    res.status(500).json({ error: "Failed to fetch API keys", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -274,17 +320,21 @@ app.post("/api/api-keys", async (req, res) => {
     const defaultTenant = await prisma.tenant.findFirst();
     const tenantId = defaultTenant ? defaultTenant.id : "tnt-8849-acme";
 
-    const newKeyId = `key-${Math.floor(100 + Math.random() * 900)}`;
-    const secretSuffix = Math.random().toString(36).substring(2, 10);
-    const prefix = `ctx_${environment === "Staging" ? "test" : "live"}_${secretSuffix}••••••••`;
-
-    const newKey = await prisma.apiKey.create({
+        // G2 FIX: CSPRNG for API keys — never Math.random()
+    const { randomBytes: apiKeyBytes } = await import('crypto');
+    const rawSecret = apiKeyBytes(24).toString('hex');
+    const envPrefix = environment === "Staging" ? "test" : "live";
+    const newKeyId = `key-${rawSecret.substring(0, 8)}`;
+    const fullKey = `ctx_${envPrefix}_${rawSecret}`;
+    const prefix = `ctx_${envPrefix}_${rawSecret.substring(0, 6)}[HIDDEN]`;
+    const keyHash = require('crypto').createHash('sha256').update(fullKey).digest('hex');
+        const newKey = await prisma.apiKey.create({
       data: {
         id: newKeyId,
         tenantId,
         name: name || "Default Client Key",
         prefix,
-        keyHash: `sha256_${newKeyId}`,
+        keyHash, // SHA-256 of the actual key — raw key is NEVER stored
         environment: environment || "Production",
         status: "ACTIVE",
         monthlySpend: 0.0,
@@ -294,7 +344,7 @@ app.post("/api/api-keys", async (req, res) => {
 
     res.status(201).json(newKey);
   } catch (err) {
-    res.status(500).json({ error: "Failed to generate API key", details: err.message });
+    res.status(500).json({ error: "Failed to generate API key", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -306,7 +356,7 @@ app.delete("/api/api-keys/:id", async (req, res) => {
     });
     res.json({ success: true, message: `Key ${req.params.id} revoked` });
   } catch (err) {
-    res.status(500).json({ error: "Failed to revoke API key", details: err.message });
+    res.status(500).json({ error: "Failed to revoke API key", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -320,7 +370,7 @@ app.get("/api/tickets", async (req, res) => {
     });
     res.json(tickets);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch support tickets", details: err.message });
+    res.status(500).json({ error: "Failed to fetch support tickets", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -329,7 +379,7 @@ app.post("/api/tickets", async (req, res) => {
     const { subject, priority, message } = req.body;
     const defaultTenant = await prisma.tenant.findFirst();
     const tenantId = defaultTenant ? defaultTenant.id : "tnt-8849-acme";
-    const ticketId = `TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+    const ticketId = `TCK-${Date.now().toString(36).toUpperCase()}`;
 
     const newTicket = await prisma.supportTicket.create({
       data: {
@@ -352,7 +402,7 @@ app.post("/api/tickets", async (req, res) => {
 
     res.status(201).json(newTicket);
   } catch (err) {
-    res.status(500).json({ error: "Failed to create support ticket", details: err.message });
+    res.status(500).json({ error: "Failed to create support ticket", requestId: req.requestId || "unknown" });
   }
 });
 
@@ -420,7 +470,7 @@ app.get("/api/sellers/:handle", (req, res) => {
 app.post("/api/products/submit", (req, res) => {
   const submission = req.body;
   const modRecord = {
-    id: `MOD-${Math.floor(400 + Math.random() * 500)}`,
+    id: `MOD-${Date.now().toString(36).toUpperCase()}`,
     productId: submission.id || `prod-${Date.now()}`,
     productName: submission.name,
     productType: submission.productType || "AI_AGENT",
@@ -466,7 +516,9 @@ app.get("/api/entitlements", (req, res) => {
 app.post("/api/orders/checkout", (req, res) => {
   const { componentId, tier, price } = req.body;
   const priceNum = parseInt(price) || 499;
-  const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  // G2 FIX: CSPRNG for entitlement keys
+  const checkoutBytes = require('crypto').randomBytes(12).toString('hex').toUpperCase();
+  const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${checkoutBytes.substring(0, 6)}-${checkoutBytes.substring(6, 12)}`;
 
   const entitlement = {
     id: `ent-${Date.now()}`,

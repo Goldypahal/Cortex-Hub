@@ -3,6 +3,22 @@
  * Utility Helpers & UI Services
  */
 
+// ============================================================================
+// G7 FIX: XSS Prevention - ALWAYS use escapeHtml() before interpolating
+// user-supplied / dynamic content into innerHTML. Static strings are safe.
+// ============================================================================
+export function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+
 // Toast Notifications Dispatcher
 export function showToast(message, type = "info", duration = 3500) {
   let container = document.getElementById("toast-container");

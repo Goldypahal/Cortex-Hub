@@ -1,91 +1,237 @@
 /* ==========================================================================
-   AURA AI Platform - Precision Design Tokens
-   Aesthetics: Industrial Carbon, Acid Lime Signature, Architectural Grid
-   Eradicates all generic AI templates (sharp radii, intentional contrast)
+   CORTEX HUB - Design Tokens v3.0
+   SRS v3.0 Section 6.3 - Dual Theme, Inter body, Bricolage Grotesque display
+   Tokens: OKLCH-inspired, 4px grid, soft shadows, calm-by-default
+
+   CHANGES FROM v2.0 (SRS v3.0 Section 6.2):
+   - Added light theme per SRS "Both themes are first-class"
+   - Replaced Space Grotesk body font with Inter for readability
+   - Updated radii: 6/10/16px (removed brutalist 0px/2px)
+   - Replaced hard tactile shadows with soft layered shadows
+   - Lime accent now ONLY on primary CTA/live dot/focus ring
+   - Added prefers-reduced-motion support
+   - Updated spacing to 4px grid rhythm
+   - Removed decorative engineering grid background
    ========================================================================== */
 
-:root {
-  /* Carbon Graphite Surface Architecture */
-  --bg-deep: #07080B;
-  --bg-primary: #0C0D12;
-  --bg-surface-1: #12141A;
-  --bg-surface-2: #181B23;
-  --bg-surface-3: #202430;
-  --bg-highlight: #282D3D;
+/* --------------------------------------------------------------------------
+   DARK THEME (default - developers and signed-in users)
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
 
-  /* Crisp 1px Precision Borders (No fuzzy blurs) */
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-medium: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.22);
+  /* Surfaces */
+  --bg: #0B0C0F;
+  --surface-1: #121318;
+  --surface-2: #181A20;
+  --surface-3: #1E2028;
+
+  /* Borders */
+  --border: #24262E;
+  --border-medium: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
   --border-focus: #D4FF00;
-  --border-accent: #FF8C00;
 
-  /* Signature Color: Acid Lime (#D4FF00) - Unapologetic, High-Craft Accent */
-  --accent-lime: #D4FF00;
-  --accent-lime-hover: #E2FE52;
-  --accent-lime-dim: rgba(212, 255, 0, 0.12);
-  --accent-lime-border: rgba(212, 255, 0, 0.35);
+  /* Text */
+  --text: #F4F5F7;
+  --text-muted: #9AA0AD;
+  --text-dim: #5E6370;
+  --text-inverse: #0B0C0F;
 
-  /* Secondary Signal: Amber & Cyber Cyan */
-  --signal-amber: #FF8C00;
-  --signal-amber-dim: rgba(255, 140, 0, 0.12);
-  --signal-cyan: #00E5FF;
-  --signal-cyan-dim: rgba(0, 229, 255, 0.1);
+  /* Accent - lime: used ONLY on primary CTA, live dot, focus ring */
+  --accent: #D4FF00;
+  --accent-hover: #E2FE52;
+  --accent-fg: #0B0C0F;
+  --accent-dim: rgba(212,255,0,0.10);
 
-  /* Status Colors */
-  --status-live: #00E676;
-  --status-live-dim: rgba(0, 230, 118, 0.12);
-  --status-review: #FFB300;
-  --status-review-dim: rgba(255, 179, 0, 0.12);
-  --status-error: #FF3D71;
-  --status-error-dim: rgba(255, 61, 113, 0.12);
+  /* Status */
+  --info: #60A5FA;
+  --success: #4ADE80;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  --info-dim: rgba(96,165,250,0.12);
+  --success-dim: rgba(74,222,128,0.12);
+  --warning-dim: rgba(251,191,36,0.12);
+  --danger-dim: rgba(248,113,113,0.12);
 
-  /* Typography Colors */
-  --text-primary: #F7F8FA;
-  --text-secondary: #9DA4B3;
-  --text-muted: #676F82;
-  --text-dim: #434958;
-  --text-inverse: #07080B;
+  /* Legacy compatibility aliases - do not remove until all views updated */
+  --bg-deep: #07080B;
+  --bg-primary: var(--bg);
+  --bg-surface-1: var(--surface-1);
+  --bg-surface-2: var(--surface-2);
+  --bg-surface-3: var(--surface-3);
+  --bg-highlight: #282D3D;
+  --border-subtle: var(--border);
+  --accent-lime: var(--accent);
+  --accent-lime-hover: var(--accent-hover);
+  --accent-lime-dim: var(--accent-dim);
+  --accent-lime-border: rgba(212,255,0,0.30);
+  --border-accent: var(--accent);
+  --signal-amber: #FB923C;
+  --signal-amber-dim: rgba(251,146,60,0.12);
+  --signal-cyan: #22D3EE;
+  --signal-cyan-dim: rgba(34,211,238,0.10);
+  --cyan: var(--signal-cyan);
+  --status-live: var(--success);
+  --status-live-dim: var(--success-dim);
+  --status-review: var(--warning);
+  --status-review-dim: var(--warning-dim);
+  --status-error: var(--danger);
+  --status-error-dim: var(--danger-dim);
+  --success-bg: var(--success-dim);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+}
 
-  /* Typography Stack - High-Character Neo-Grotesque & Monospaced */
+/* --------------------------------------------------------------------------
+   LIGHT THEME - buyers, enterprise procurement, public pages (SRS v3.0 S6.1)
+   -------------------------------------------------------------------------- */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #FAFAF9;
+  --surface-1: #FFFFFF;
+  --surface-2: #F3F3F1;
+  --surface-3: #EAEAE7;
+
+  --border: #E6E6E3;
+  --border-medium: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+  --border-focus: #5C8200;
+
+  --text: #111214;
+  --text-muted: #5E6370;
+  --text-dim: #9AA0AD;
+  --text-inverse: #FFFFFF;
+
+  --accent: #5C8200;
+  --accent-hover: #4A6B00;
+  --accent-fg: #FFFFFF;
+  --accent-dim: rgba(92,130,0,0.10);
+
+  --info: #2563EB;
+  --success: #15803D;
+  --warning: #B45309;
+  --danger: #DC2626;
+  --info-dim: rgba(37,99,235,0.10);
+  --success-dim: rgba(21,128,61,0.10);
+  --warning-dim: rgba(180,83,9,0.10);
+  --danger-dim: rgba(220,38,38,0.10);
+
+  /* Legacy compat aliases for light */
+  --bg-deep: #F0F0EE;
+  --bg-primary: var(--bg);
+  --bg-surface-1: var(--surface-1);
+  --bg-surface-2: var(--surface-2);
+  --bg-surface-3: var(--surface-3);
+  --bg-highlight: #E8E8E5;
+  --border-subtle: var(--border);
+  --accent-lime: var(--accent);
+  --accent-lime-hover: var(--accent-hover);
+  --accent-lime-dim: var(--accent-dim);
+  --accent-lime-border: rgba(92,130,0,0.30);
+  --signal-amber: #D97706;
+  --signal-amber-dim: rgba(217,119,6,0.10);
+  --signal-cyan: #0891B2;
+  --signal-cyan-dim: rgba(8,145,178,0.10);
+  --cyan: var(--signal-cyan);
+  --status-live: var(--success);
+  --status-live-dim: var(--success-dim);
+  --status-review: var(--warning);
+  --status-review-dim: var(--warning-dim);
+  --status-error: var(--danger);
+  --status-error-dim: var(--danger-dim);
+  --success-bg: var(--success-dim);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   TYPOGRAPHY - SRS v3.0 Section 6.3
+   Display: Bricolage Grotesque 600, tracking -2%
+   UI/Body: Inter 400/500/600 (replaces Space Grotesk - better readability)
+   Code: JetBrains Mono 13-14px
+   -------------------------------------------------------------------------- */
+:root {
   --font-heading: 'Bricolage Grotesque', -apple-system, sans-serif;
-  --font-sans: 'Space Grotesk', -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', 'Geist Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Spacing Rhythm (Tight data vs Breathable sections) */
-  --space-1: 3px;
-  --space-2: 6px;
-  --space-3: 10px;
+  /* Type scale: 1.25 ratio, 16px base */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.9375rem;
+  --text-3xl: 2.4375rem;
+  --text-4xl: 3.0625rem;
+
+  /* SPACING - 4px grid (SRS v3.0 S6.3) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
   --space-8: 48px;
   --space-10: 64px;
-  --space-12: 80px;
+  --space-12: 96px;
+  --space-16: 128px;
 
-  /* Precision Radii - Sharp engineering edges (NO 16px/24px pills) */
-  --radius-sharp: 0px;
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  /* RADII - SRS v3.0: 6 (inputs/chips), 10 (buttons/cards), 16 (modals/hero) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
   --radius-pill: 9999px;
+  /* Legacy compat */
+  --radius-sharp: 0px;
 
-  /* Shadows - Hard, Tactical, Zero Muddy Blurs */
-  --shadow-tactile: 2px 2px 0px rgba(0, 0, 0, 0.8);
-  --shadow-tactile-lg: 4px 4px 0px rgba(0, 0, 0, 0.9);
-  --shadow-tactile-lime: 3px 3px 0px #D4FF00;
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.6);
+  /* SHADOWS - soft, low-contrast (not brutalist hard offsets) (SRS v3.0 S6.2)
+     Elevation 0: flat with border
+     Elevation 1: popover/card hover
+     Elevation 2: modal/drawer */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --shadow-xl: 0 24px 48px rgba(0,0,0,0.18), 0 8px 16px rgba(0,0,0,0.08);
+  /* Legacy compat aliases */
+  --shadow-tactile: var(--shadow-sm);
+  --shadow-tactile-lg: var(--shadow-md);
+  --shadow-tactile-lime: 0 0 0 2px var(--accent);
+  --shadow-subtle: var(--shadow-sm);
 
-  /* Transitions */
+  /* MOTION - animate state changes, never idle decoration (SRS v3.0 S6.1) */
+  --ease-default: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  /* Legacy compat */
   --transition-instant: 80ms ease;
   --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
   --transition-normal: 240ms cubic-bezier(0.2, 0, 0, 1);
 
-  /* Z-Indices */
+  /* LAYOUT */
+  --content-max: 1200px;
+  --content-wide: 1440px;
+
+  /* Z-INDICES */
   --z-base: 1;
   --z-card: 10;
   --z-header: 100;
   --z-ticker: 150;
   --z-modal: 1000;
   --z-toast: 2000;
+}
+
+/* prefers-reduced-motion - SRS v3.0 S6.1 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
