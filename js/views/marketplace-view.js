@@ -52,7 +52,7 @@ export class MarketplaceView {
           </div>
         </div>
         <div style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">
-          <span>[SPEC: SRS v3.0]</span> • <span style="color: var(--accent);">${this.components.length} Verified Components</span>
+          <span>[SPEC: SRS v3.0]</span> • <span style="color: var(--accent);">${this.components.length} Components</span>
         </div>
       </div>
 
@@ -84,7 +84,7 @@ export class MarketplaceView {
 
           <div class="hero-cta-cluster">
             <button class="btn btn-primary btn-lg" id="hero-btn-explore">
-              Explore ${this.components.length} Verified Solutions →
+              Explore ${this.components.length} Solutions →
             </button>
             <button class="btn btn-secondary btn-lg" id="hero-btn-launch-sandbox">
               Launch Live Sandbox
@@ -97,19 +97,15 @@ export class MarketplaceView {
           <div class="hero-specs-row">
             <div class="hero-spec-item">
               <span class="hero-spec-val">${this.components.length}</span>
-              <span class="hero-spec-lbl">Verified Solutions</span>
+              <span class="hero-spec-lbl">Solutions in Catalog</span>
             </div>
             <div class="hero-spec-item">
-              <span class="hero-spec-val">&lt; 750ms</span>
-              <span class="hero-spec-lbl">Median Latency</span>
-            </div>
-            <div class="hero-spec-item">
-              <span class="hero-spec-val">100%</span>
-              <span class="hero-spec-lbl">Sandboxed Verification</span>
+              <span class="hero-spec-val">Sandbox</span>
+              <span class="hero-spec-lbl">Try Before You Buy</span>
             </div>
             <div class="hero-spec-item">
               <span class="hero-spec-val">INR + USD</span>
-              <span class="hero-spec-lbl">GST Invoicing</span>
+              <span class="hero-spec-lbl">Prices Shown</span>
             </div>
           </div>
         </div>
@@ -118,10 +114,9 @@ export class MarketplaceView {
         <div class="pipeline-monitor-box">
           <div class="monitor-header">
             <span class="monitor-title">
-              <span class="ticker-beacon"></span>
-              LIVE PLATFORM TELEMETRY // MEASURED PROOF
+              SAMPLE PIPELINE RUN // ILLUSTRATIVE
             </span>
-            <span class="badge badge-lime">TELEMETRY ACTIVE</span>
+            <span class="badge badge-amber">SAMPLE DATA</span>
           </div>
 
           <div class="monitor-pipeline-stages">
@@ -144,10 +139,10 @@ export class MarketplaceView {
           </div>
 
           <div class="monitor-live-output">
-            <div style="color: var(--text-muted); margin-bottom: 4px;">// LIVE MEASURED RUN (Telemetry Proof):</div>
+            <div style="color: var(--text-muted); margin-bottom: 4px;">// SAMPLE OUTPUT (illustrative, not a measured run):</div>
             <div>"Section 12.3: Liability indemnification capped at 12-month contract fees."</div>
             <div style="color: var(--accent); margin-top: 4px; font-size: 0.72rem;">
-              → Verified Source: MSA_2026.docx // Page 18 // Zero Data Egress
+              → Cited source: MSA_2026.docx // Page 18
             </div>
           </div>
         </div>
@@ -403,7 +398,7 @@ export class MarketplaceView {
         .map((c) => {
           const isCompared = this.comparedComponentIds.has(c.id);
           const telemetry = c.measuredTelemetry || {};
-          const activeInstalls = telemetry.activeInstalls || 250;
+          const activeInstalls = telemetry.activeInstalls;
           const channels = c.channels || ["Website", "WhatsApp", "Email"];
 
           return `
@@ -424,10 +419,13 @@ export class MarketplaceView {
               <p class="buyer-card-valueprop">${escapeHtml(c.buyerValueProp || c.shortDesc)}</p>
 
               <div class="buyer-social-proof">
-                <span class="buyer-social-rating">★ ${c.rating || 4.9}</span>
-                <span>(${c.ratingCount || 12} reviews)</span>
-                <span>•</span>
-                <span class="buyer-social-installs">${activeInstalls} Active Stores</span>
+                ${
+                  c.rating
+                    ? `<span class="buyer-social-rating">★ ${escapeHtml(c.rating)}</span>
+                <span>(${escapeHtml(c.ratingCount || 0)} reviews)</span>`
+                    : `<span>No reviews yet</span>`
+                }
+                ${activeInstalls ? `<span>•</span><span class="buyer-social-installs">${escapeHtml(activeInstalls)} installs (sample)</span>` : ""}
               </div>
 
               <div class="buyer-channels-container">
@@ -495,9 +493,9 @@ export class MarketplaceView {
                 <!-- Hardware and Accuracy Badges -->
                 <div style="display: flex; gap: 12px; margin: 10px 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap;">
                   <span>• VRAM: <strong style="color: var(--text);">${escapeHtml(c.hardwareReqs ? c.hardwareReqs.vram : "8 GB VRAM")}</strong></span>
-                  <span>• Measured p95: <strong style="color: var(--accent);">${escapeHtml(telemetry.p95Latency || "737ms")}</strong></span>
-                  <span>• Eval Grounding: <strong style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "98.4%")}</strong></span>
-                  <span>• 30d Uptime: <strong style="color: var(--success);">${escapeHtml(telemetry.uptime30d || "99.98%")}</strong></span>
+                  <span>• p95 (sample): <strong style="color: var(--accent);">${escapeHtml(telemetry.p95Latency || "—")}</strong></span>
+                  <span>• Eval (sample): <strong style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "—")}</strong></span>
+                  <span>• Uptime (sample): <strong style="color: var(--success);">${escapeHtml(telemetry.uptime30d || "—")}</strong></span>
                 </div>
 
                 <div class="bento-mini-inspector">
@@ -559,8 +557,8 @@ export class MarketplaceView {
 
               <div style="display: flex; gap: 8px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">
                 <span>VRAM: <strong style="color: var(--text);">${escapeHtml(c.hardwareReqs ? c.hardwareReqs.vram.split(" ")[0] + " GB" : "4 GB")}</strong></span>
-                <span>• Latency: <strong style="color: var(--cyan);">${escapeHtml(telemetry.p95Latency || "<1s")}</strong></span>
-                <span>• ★ ${c.rating || 4.8}</span>
+                <span>• Latency (sample): <strong style="color: var(--cyan);">${escapeHtml(telemetry.p95Latency || "—")}</strong></span>
+                ${c.rating ? `<span>• ★ ${escapeHtml(c.rating)}</span>` : ""}
               </div>
 
               <div class="bento-tags-row">
@@ -697,12 +695,12 @@ export class MarketplaceView {
                   .join("")}
               </tr>
               <tr>
-                <td class="matrix-label">Measured Accuracy Benchmark</td>
+                <td class="matrix-label">Accuracy Benchmark (sample)</td>
                 ${selectedComps
                   .map(
                     (c) => `
                   <td class="matrix-val" style="color: var(--accent);">
-                    ${escapeHtml(c.measuredTelemetry?.evalScore || (c.benchmarks ? c.benchmarks.accuracy : "98% Precision"))}
+                    ${escapeHtml(c.measuredTelemetry?.evalScore || (c.benchmarks ? c.benchmarks.accuracy : "—"))}
                   </td>
                 `
                   )
@@ -819,37 +817,35 @@ export class MarketplaceView {
             
             <div class="pdp-fit-badges-row">
               ${(comp.goodFor || comp.tags || ["Enterprise", "SMBs"]).map((g) => `<span class="fit-badge">Good for: ${escapeHtml(g)}</span>`).join("")}
-              <span class="fit-badge" style="border-color: var(--success); color: var(--success);">✓ Verified Secure</span>
-              <span class="fit-badge" style="border-color: var(--accent); color: var(--accent);">✓ DPDP / GDPR Zero-Egress</span>
             </div>
           </div>
 
-          <!-- PDP-02: Live Trust Panel -->
+          <!-- PDP-02: Trust Panel. Shows sample values until platform telemetry fills Product.uptimePct30d etc. (G11) -->
           <div class="live-trust-panel">
             <div class="trust-panel-title">
-              <span>// LIVE PLATFORM TELEMETRY (PDP-02)</span>
-              <span style="color: var(--success);">MEASURED INDEPENDENTLY</span>
+              <span>// TRUST PANEL (PDP-02)</span>
+              <span style="color: var(--status-review);">SAMPLE DATA, NOT YET MEASURED</span>
             </div>
             <div class="trust-metrics-grid">
               <div class="trust-metric-cell">
                 <span class="trust-metric-lbl">30-Day Uptime</span>
-                <span class="trust-metric-val live">${escapeHtml(telemetry.uptime30d || "99.98%")}</span>
+                <span class="trust-metric-val">${escapeHtml(telemetry.uptime30d || "—")}</span>
               </div>
               <div class="trust-metric-cell">
                 <span class="trust-metric-lbl">p95 Latency</span>
-                <span class="trust-metric-val">${escapeHtml(telemetry.p95Latency || "737ms")}</span>
+                <span class="trust-metric-val">${escapeHtml(telemetry.p95Latency || "—")}</span>
               </div>
               <div class="trust-metric-cell">
                 <span class="trust-metric-lbl">Benchmark Eval</span>
-                <span class="trust-metric-val" style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "98.4%")}</span>
+                <span class="trust-metric-val" style="color: var(--cyan);">${escapeHtml(telemetry.evalScore || "—")}</span>
               </div>
               <div class="trust-metric-cell">
                 <span class="trust-metric-lbl">Active Installs</span>
-                <span class="trust-metric-val">${escapeHtml(String(telemetry.activeInstalls || 342))}</span>
+                <span class="trust-metric-val">${escapeHtml(String(telemetry.activeInstalls ?? "—"))}</span>
               </div>
               <div class="trust-metric-cell">
                 <span class="trust-metric-lbl">Release Date</span>
-                <span class="trust-metric-val" style="font-size: 0.85rem;">${escapeHtml(telemetry.lastUpdated || "Oct 2026")}</span>
+                <span class="trust-metric-val" style="font-size: 0.85rem;">${escapeHtml(telemetry.lastUpdated || "—")}</span>
               </div>
             </div>
           </div>

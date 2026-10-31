@@ -4,6 +4,8 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { randomBytes } from "crypto";
+import { hashPassword, sha256 } from "../auth.js";
 import { CATALOG_COMPONENTS } from "../../js/data/catalog-data.js";
 import {
   MOCK_TENANT,
@@ -83,7 +85,7 @@ async function main() {
 
   // 3. Seed Customization Requests
   for (const req of MOCK_CUSTOMIZATION_REQUESTS) {
-    await prisma.customizationRequest.upsert({
+    await prisma.legacyCustomizationRequest.upsert({
       where: { id: req.id },
       update: {
         status: req.status,
@@ -113,16 +115,18 @@ async function main() {
 
   // 4. Seed Licenses
   for (const lic of MOCK_LICENSES) {
-    await prisma.license.upsert({
-      where: { licenseKey: lic.licenseKey },
+    // Mock licenses carry no key, so seeded ones get a random demo key
+    await prisma.legacyLicense.upsert({
+      where: { id: lic.id },
       update: {},
       create: {
+        id: lic.id,
         tenantId: tenant.id,
         componentId: lic.componentId,
         tier: lic.tier,
-        licenseKey: lic.licenseKey,
+        licenseKey: lic.licenseKey || `LIC-DEMO-${randomBytes(6).toString("hex").toUpperCase()}`,
         status: lic.status,
-        clusterTarget: lic.clusterTarget,
+        clusterTarget: lic.clusterTarget || lic.env,
         rateLimit: lic.rateLimit,
         startDate: new Date(lic.startDate)
       }
@@ -132,7 +136,7 @@ async function main() {
 
   // 5. Seed API Keys
   for (const k of MOCK_API_KEYS) {
-    await prisma.apiKey.upsert({
+    await prisma.legacyApiKey.upsert({
       where: { id: k.id },
       update: {},
       create: {
@@ -140,7 +144,7 @@ async function main() {
         tenantId: tenant.id,
         name: k.name,
         prefix: k.prefix,
-        keyHash: `hash_${k.id}_${Math.random().toString(36).substring(7)}`,
+        keyHash: sha256(randomBytes(24).toString("hex")), // demo key: raw value never exists
         status: k.status,
         environment: k.environment,
         monthlySpend: k.monthlySpend,
@@ -152,7 +156,7 @@ async function main() {
 
   // 6. Seed Support Tickets
   for (const t of MOCK_SUPPORT_TICKETS) {
-    await prisma.supportTicket.upsert({
+    await prisma.legacySupportTicket.upsert({
       where: { id: t.id },
       update: {},
       create: {
@@ -168,7 +172,55 @@ async function main() {
   }
   console.log(`✅ Seeded ${MOCK_SUPPORT_TICKETS.length} Support Tickets`);
 
+  // 7. Seed Workspaces & Demo Accounts (SRS v3.0 AUTH)
+  // The buyer workspace shares the tenant's slug so legacy data maps onto it.
+  await seedDemoAccounts();
+
   console.log("✨ PostgreSQL Database Seeding Complete!");
+}
+
+async function seedDemoAccounts() {
+  const workspaces = [
+    { type: "BUYER", name: MOCK_TENANT.name, slug: "acme-health" },
+    { type: "SELLER", name: "Apex AI Labs", slug: "apex-ai" },
+    { type: "PLATFORM", name: "Cortex Hub Operations", slug: "cortex-platform" }
+  ];
+  const accounts = [
+    { email: "buyer@acme-health.test", name: "Acme Health Buyer", globalRole: "BUYER", workspace: "acme-health" },
+    { email: "seller@apex-ai.test", name: "Apex AI Seller", globalRole: "SELLER", workspace: "apex-ai" },
+    { email: "admin@cortex-hub.test", name: "Platform Admin", globalRole: "ADMIN", workspace: "cortex-platform" }
+  ];
+
+  const bySlug = {};
+  for (const w of workspaces) {
+    bySlug[w.slug] = await prisma.workspace.upsert({ where: { slug: w.slug }, update: {}, create: w });
+  }
+
+  // Passwords are never hard-coded: set SEED_DEMO_PASSWORD, or one is generated and printed once.
+  const password = process.env.SEED_DEMO_PASSWORD || randomBytes(12).toString("base64url");
+  const created = [];
+  for (const a of accounts) {
+    const existing = await prisma.user.findUnique({ where: { email: a.email } });
+    if (existing) continue;
+    await prisma.user.create({
+      data: {
+        email: a.email,
+        name: a.name,
+        globalRole: a.globalRole,
+        emailVerified: true,
+        passwordHash: await hashPassword(password),
+        memberships: { create: { workspaceId: bySlug[a.workspace].id, role: "OWNER" } }
+      }
+    });
+    created.push(a.email);
+  }
+
+  if (created.length > 0) {
+    console.log(`✅ Created demo accounts: ${created.join(", ")}`);
+    if (!process.env.SEED_DEMO_PASSWORD) console.log(`   Demo password (shown once): ${password}`);
+  } else {
+    console.log("✅ Demo accounts already exist (passwords unchanged)");
+  }
 }
 
 main()

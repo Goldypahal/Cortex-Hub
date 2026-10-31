@@ -3,8 +3,8 @@
 > Production-ready, deterministic AI engines with exact document byte-offset citations, hybrid vector retrieval, and sovereign VPC / air-gapped deployment.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Status: Online](https://img.shields.io/badge/Platform-Online-00ff66.svg)](#)
-[![Compliance: SOC2/DPDP](https://img.shields.io/badge/Compliance-DPDP%20%2F%20GDPR-cyan.svg)](#)
+
+> **Status:** prototype (SRS v3.0 Phase 0). Catalog figures (uptime, latency, eval scores, revenue) are sample data, and checkout is simulated: no payments are taken. No compliance certification has been issued yet.
 
 ---
 
@@ -113,7 +113,7 @@ The platform is structured across three core planes:
 ## 💻 Local Development
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (v18 or higher)
+* [Node.js](https://nodejs.org/) (v20 or higher)
 * [PostgreSQL](https://www.postgresql.org/) (Local instance or cloud provider like Supabase/Neon)
 
 ### Installation & Run
@@ -134,36 +134,44 @@ The platform is structured across three core planes:
    ```bash
    DATABASE_URL="postgresql://postgres:<password>@localhost:5432/cortex_hub"
    ```
+   Optionally set `SEED_DEMO_PASSWORD` to choose the demo accounts' password.
 
-4. Push Schema & Seed PostgreSQL Database:
+4. Create the schema & seed the database:
    ```bash
-   # Push schema models (Tenants, Components, Licenses, Requests, Tickets, Keys)
-   npm run db:push
+   # Apply versioned migrations (server/prisma/migrations)
+   npm run db:migrate:deploy
 
-   # Seed database with 10 production AI engines and default tenant
+   # Seed 10 AI engines, sample tenant data and demo accounts
    npm run db:seed
    ```
+   The seed creates three demo accounts: `buyer@acme-health.test`, `seller@apex-ai.test` and `admin@cortex-hub.test`. If `SEED_DEMO_PASSWORD` is empty, it prints a generated password once.
 
-5. Start the Fullstack Application:
+5. Start the application (one Express server serves the site and the API under `/api`):
    ```bash
-   # Runs both Express API (:5000) and Frontend (:3000) concurrently
-   npm run fullstack
+   npm start        # or: npm run dev (restarts on file changes)
    ```
 
-   Or run them individually:
-   * Backend REST API: `npm run server`
-   * Frontend Client: `npm run dev`
+6. Open http://localhost:5000 and use **Sign in** with a demo account.
 
-6. Open your browser and navigate to:
+7. Run the API tests (they need `DATABASE_URL` pointing at a migrated, seeded database and `SEED_DEMO_PASSWORD` set to the demo password):
+   ```bash
+   npm test
    ```
-   http://localhost:3000
-   ```
+
+### Access control
+
+| Area | Who can use it |
+| --- | --- |
+| Catalog read (`GET /api/components`), health, seller profiles | Anyone |
+| Licenses, API keys, tickets, customization requests, tenant | Signed-in members of a buyer workspace (their own data only) |
+| Product submission | Signed-in members of a seller workspace |
+| Catalog write, customization status updates, moderation, revenue | Platform staff by role (admin, support, moderator, finance) |
 
 ---
 
 ## 📄 Documentation
 
-For full functional specifications and requirements, see [`capstone.md`](./capstone.md).
+For full functional specifications and requirements, see [`srs.md`](./srs.md) and [`capstone.md`](./capstone.md).
 
 ---
 

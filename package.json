@@ -5,10 +5,11 @@
   "description": "Cortex Hub — AI/ML Marketplace & Commercialization Platform (SRS v3.0)",
   "main": "index.html",
   "scripts": {
-    "dev": "npx -y serve . -l 3000",
-    "start": "npx -y serve . -l 3000",
+    "dev": "node --watch server/server.js",
+    "start": "node server/server.js",
     "server": "node server/server.js",
-    "fullstack": "concurrently \"npm run server\" \"npm run dev\"",
+    "fullstack": "node server/server.js",
+    "test": "node --test tests/*.test.js",
 
     "db:generate": "prisma generate --schema=server/prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=server/prisma/schema.prisma",

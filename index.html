@@ -61,12 +61,9 @@
         <span class="ticker-beacon"></span>
         <span class="ticker-item">SYS: <span id="sys-status-text">Loading status...</span></span>
         <span class="ticker-divider">/</span>
-        <span class="ticker-item">CLUSTER: <strong>AWS us-east-1</strong></span>
-        <span class="ticker-divider">/</span>
-        <span class="ticker-item">AVG P95 TTFT: <strong>840ms</strong></span>
+        <span class="ticker-item">CATALOG: <strong>Sample data</strong> (figures are illustrative, not measured)</span>
       </div>
       <div class="ticker-right">
-        <span class="ticker-tag">[DATA: DPDP / GDPR ZERO-EGRESS]</span>
         <span class="ticker-tag">[SPEC: SRS v3.0]</span>
       </div>
     </div>
@@ -119,8 +116,8 @@
         <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme" aria-label="Toggle Light/Dark Theme">
           <span id="theme-icon">☀️</span>
         </button>
-        <div class="role-switcher-container">
-          <span class="role-label">VIEW CONTEXT:</span>
+        <div class="role-switcher-container" title="Preview each portal with sample data. Real account data needs sign-in.">
+          <span class="role-label">DEMO PREVIEW:</span>
           <select id="header-role-select" class="role-select">
             <option value="visitor" selected>Visitor (Anonymous)</option>
             <option value="customer">Acme Health (Enterprise Buyer)</option>
@@ -128,8 +125,34 @@
             <option value="admin">Platform Operator (Admin)</option>
           </select>
         </div>
+        <!-- G1: real sign-in (session cookie) -->
+        <span id="auth-user-label" class="role-label" hidden></span>
+        <button id="auth-signin-btn" class="btn btn-primary btn-sm" type="button">Sign in</button>
+        <button id="auth-signout-btn" class="btn btn-outline btn-sm" type="button" hidden>Sign out</button>
       </div>
     </header>
+
+    <!-- Sign-in dialog -->
+    <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+      <div class="modal-dialog" style="max-width: 420px;">
+        <div class="modal-header">
+          <h3 id="auth-modal-title" class="modal-title" style="color: var(--text-primary);">Sign in to Cortex Hub</h3>
+          <button id="auth-modal-close" class="btn btn-ghost btn-sm" type="button" aria-label="Close">✕</button>
+        </div>
+        <form id="auth-form" class="modal-body" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="auth-email">Email</label>
+            <input id="auth-email" class="text-input" type="email" autocomplete="username" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="auth-password">Password</label>
+            <input id="auth-password" class="text-input" type="password" autocomplete="current-password" required />
+          </div>
+          <p id="auth-error" role="alert" style="color: var(--status-error); font-size: 0.85rem; min-height: 1.2em; margin: 0 0 12px;"></p>
+          <button id="auth-submit" class="btn btn-primary" type="submit" style="width: 100%;">Sign in</button>
+        </form>
+      </div>
+    </div>
 
     <!-- Main Content Views -->
     <main class="main-content">
@@ -147,21 +170,21 @@
         <div class="footer-left">
           <div class="footer-brand">CORTEX HUB PLATFORM ARCHITECTURE</div>
           <p class="footer-desc">
-            Deterministic inference pipelines engineered for strict compliance. Source-grounded RAG, OCR extractors, and autonomous agents deployed to sovereign VPCs.
+            Marketplace for production AI components: source-grounded RAG, OCR extractors and autonomous agents. Catalog figures shown here are sample data until platform telemetry is live.
           </p>
         </div>
         <div class="footer-right">
           <div class="footer-meta-block">
-            <span class="footer-meta-label">SECURITY PROTOCOL</span>
-            <span class="footer-meta-val">TLS 1.3 Strict Transport</span>
+            <span class="footer-meta-label">ACCESS CONTROL</span>
+            <span class="footer-meta-val">Session sign-in + role checks</span>
           </div>
           <div class="footer-meta-block">
             <span class="footer-meta-label">ISOLATION MODEL</span>
-            <span class="footer-meta-val">Row-Level RLS + Tenant VPC</span>
+            <span class="footer-meta-val">Workspace-scoped API</span>
           </div>
           <div class="footer-meta-block">
-            <span class="footer-meta-label">SLAS</span>
-            <span class="footer-meta-val" id="footer-uptime">See status page</span>
+            <span class="footer-meta-label">API STATUS</span>
+            <span class="footer-meta-val" id="footer-uptime">Checking…</span>
           </div>
         </div>
       </div>
@@ -169,11 +192,7 @@
   </div>
 
   <!-- Bootstrap Script -->
-  <!-- G9 FIX: API URL injected here by server. Replace with actual URL in production. -->
-  <script>
-    // Set by server-side rendering or deployment env. Never hardcode localhost.
-    window.CORTEX_API_URL = window.location.origin + "/api";
-  </script>
+  <!-- G9: the Express server serves this page and /api from the same origin -->
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

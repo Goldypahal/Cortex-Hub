@@ -8,6 +8,11 @@
   padding: 0;
 }
 
+/* Keep the hidden attribute authoritative over component display rules (e.g. .btn) */
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   background-color: var(--bg-deep);
   color: var(--text-primary);

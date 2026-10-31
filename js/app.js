@@ -53,7 +53,92 @@ class Application {
       });
     }
 
+    this.attachAuthEvents();
     await this.syncDatabaseTelemetry();
+    this.setSignedInUser(await this.api.getCurrentUser());
+  }
+
+  // --------------------------------------------------------------------------
+  // Sign-in (G1): the server owns identity; the header shows who is signed in.
+  // --------------------------------------------------------------------------
+  attachAuthEvents() {
+    const modal = document.getElementById("auth-modal");
+    const form = document.getElementById("auth-form");
+    const errorEl = document.getElementById("auth-error");
+    const submitBtn = document.getElementById("auth-submit");
+    if (!modal || !form) return;
+
+    const close = () => modal.classList.remove("active");
+    document.getElementById("auth-signin-btn").addEventListener("click", () => {
+      errorEl.textContent = "";
+      modal.classList.add("active");
+      document.getElementById("auth-email").focus();
+    });
+    document.getElementById("auth-modal-close").addEventListener("click", close);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") close();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.textContent = "";
+      submitBtn.disabled = true;
+      try {
+        const user = await this.api.login(
+          document.getElementById("auth-email").value,
+          document.getElementById("auth-password").value
+        );
+        form.reset();
+        close();
+        this.setSignedInUser(user);
+        showToast(`Signed in as ${user.name}`, "success");
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    document.getElementById("auth-signout-btn").addEventListener("click", async () => {
+      await this.api.logout();
+      this.setSignedInUser(null);
+      const select = document.getElementById("header-role-select");
+      if (select) {
+        select.value = "visitor";
+        select.dispatchEvent(new Event("change"));
+      }
+      showToast("Signed out", "info");
+    });
+  }
+
+  setSignedInUser(user) {
+    this.currentUser = user;
+    const label = document.getElementById("auth-user-label");
+    const signInBtn = document.getElementById("auth-signin-btn");
+    const signOutBtn = document.getElementById("auth-signout-btn");
+    if (!label) return;
+
+    label.hidden = !user;
+    signOutBtn.hidden = !user;
+    signInBtn.hidden = Boolean(user);
+    label.textContent = user ? `${user.name} · ${user.workspaces[0]?.name || user.globalRole}` : "";
+
+    // Open the portal that matches the account's role
+    if (user) {
+      const workspaceTypes = user.workspaces.map((w) => w.type);
+      let role = "visitor";
+      if (["ADMIN", "SUPERADMIN", "MODERATOR", "SUPPORT", "FINANCE"].includes(user.globalRole)) role = "admin";
+      else if (workspaceTypes.includes("SELLER")) role = "seller";
+      else if (workspaceTypes.includes("BUYER")) role = "customer";
+      const select = document.getElementById("header-role-select");
+      if (select && role !== "visitor") {
+        select.value = role;
+        select.dispatchEvent(new Event("change"));
+      }
+    }
   }
 
   async syncDatabaseTelemetry() {
@@ -61,15 +146,15 @@ class Application {
       const health = await this.api.checkHealth();
       const statusText = document.getElementById("sys-status-text");
       const footerUptime = document.getElementById("footer-uptime");
+      const online = health.status === "ONLINE";
       if (statusText) {
-        if (health.status === "ONLINE") {
-          statusText.innerHTML = `<strong>ONLINE</strong> // POSTGRESQL CONNECTED`;
-        } else {
-          statusText.innerHTML = `<strong>LOCAL MODE</strong> // PERSISTENCE ACTIVE`;
-        }
+        statusText.innerHTML = online
+          ? `<strong>ONLINE</strong> // DATABASE CONNECTED`
+          : `<strong>OFFLINE</strong> // SHOWING SAMPLE DATA`;
       }
+      // Only report what was just checked; uptime history needs real monitoring (G11)
       if (footerUptime) {
-        footerUptime.textContent = health.status === "ONLINE" ? "Live: 99.98% (30-day)" : "Platform Active";
+        footerUptime.textContent = online ? "API reachable (checked just now)" : "API unreachable: sample data";
       }
       this.customizationRequests = await this.api.getCustomizationRequests();
     } catch {

@@ -53,6 +53,38 @@ class ApiClient {
   }
 
   // ------------------------------------------------------------------------
+  // Authentication (SRS v3.0 AUTH-01, G1) - session cookie set by the server
+  // ------------------------------------------------------------------------
+  async getCurrentUser() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`);
+      if (res.ok) return (await res.json()).user || null;
+    } catch {
+      // Backend offline: treat as signed out
+    }
+    return null;
+  }
+
+  async login(email, password) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Sign-in failed");
+    return data.user;
+  }
+
+  async logout() {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    }).catch(() => {});
+  }
+
+  // ------------------------------------------------------------------------
   // Components & Multi-Vendor Catalog (SRS v2.0 Section 10, 11)
   // ------------------------------------------------------------------------
   async getComponents() {
