@@ -748,7 +748,9 @@ app.use("/api", (req, res) => {
 app.use("/css", express.static(path.join(ROOT_DIR, "css")));
 app.use("/js", express.static(path.join(ROOT_DIR, "js")));
 app.get("/favicon.svg", (req, res) => res.sendFile(path.join(ROOT_DIR, "favicon.svg")));
-app.get(["/", "/index.html"], (req, res) => res.sendFile(path.join(ROOT_DIR, "index.html")));
+// Landing page (sign in, sign up, continue as guest) at the root; the app at /app
+app.get("/", (req, res) => res.sendFile(path.join(ROOT_DIR, "landing.html")));
+app.get(["/app", "/index.html"], (req, res) => res.sendFile(path.join(ROOT_DIR, "index.html")));
 
 // --------------------------------------------------------------------------
 // Error handler: log details server-side, never leak them to the client (G3)

@@ -152,11 +152,25 @@ test("logout ends the session", async () => {
 
 test("only public frontend files are served", async () => {
   const call = client();
-  const home = await call("GET", "/");
-  assert.equal(home.status, 200);
-  assert.match(String(home.headers.get("content-type")), /text\/html/);
-  assert.equal((await call("GET", "/js/app.js")).status, 200);
-  for (const path of ["/.env", "/.env.example", "/server/server.js", "/package.json", "/server/prisma/schema.prisma"]) {
+  const landing = await call("GET", "/");
+  assert.equal(landing.status, 200);
+  assert.match(String(landing.headers.get("content-type")), /text\/html/);
+  assert.match(landing.body, /Continue as guest/);
+  assert.match(landing.body, /id="dialog-signup"/);
+  const appPage = await call("GET", "/app");
+  assert.equal(appPage.status, 200);
+  assert.match(appPage.body, /src="\/js\/app\.js"/);
+  for (const asset of ["/js/app.js", "/js/landing.js", "/css/landing.css", "/css/design-tokens.css"]) {
+    assert.equal((await call("GET", asset)).status, 200, asset);
+  }
+  for (const path of [
+    "/.env",
+    "/.env.example",
+    "/server/server.js",
+    "/package.json",
+    "/server/prisma/schema.prisma",
+    "/landing.html"
+  ]) {
     assert.equal((await call("GET", path)).status, 404, path);
   }
 });

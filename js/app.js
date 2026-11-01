@@ -104,13 +104,7 @@ class Application {
 
     document.getElementById("auth-signout-btn").addEventListener("click", async () => {
       await this.api.logout();
-      this.setSignedInUser(null);
-      const select = document.getElementById("header-role-select");
-      if (select) {
-        select.value = "visitor";
-        select.dispatchEvent(new Event("change"));
-      }
-      showToast("Signed out", "info");
+      window.location.href = "/";
     });
   }
 
