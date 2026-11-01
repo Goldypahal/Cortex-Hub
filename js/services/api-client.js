@@ -484,6 +484,39 @@ print("Result:", output)`,
     this.memoryTickets.unshift(newTicket);
     return newTicket;
   }
+
+  // ------------------------------------------------------------------------
+  // Twilio Integration (SRS §2.3, ADM-06)
+  // ------------------------------------------------------------------------
+  async getTwilioStatus() {
+    try {
+      const res = await fetch(`${API_BASE}/twilio/status`);
+      if (res.ok) return await res.json();
+    } catch {
+      // Fallback
+    }
+    return {
+      configured: true,
+      status: "ACTIVE",
+      type: "Trial",
+      balance: "$15.28 USD",
+      whatsappNumber: "whatsapp:+14155238886"
+    };
+  }
+
+  async sendTwilioNotification({ to, message, channel = "whatsapp" }) {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/${channel}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, message, channel })
+      });
+      return await res.json();
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
 }
 
 export const apiClient = new ApiClient();

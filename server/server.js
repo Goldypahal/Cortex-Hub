@@ -16,6 +16,7 @@ import { randomBytes, randomUUID } from "crypto";
 import { fileURLToPath, pathToFileURL } from "url";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { getTwilioStatus, sendTwilioMessage } from "./services/twilio.js";
 import {
   PLATFORM_ADMIN_ROLES,
   PLATFORM_STAFF_ROLES,
@@ -835,6 +836,72 @@ app.post("/api/orders/checkout", requireWorkspace("BUYER"), blockSimulatedChecko
     sellerNet: body.price * 0.85
   });
 });
+
+
+// --------------------------------------------------------------------------
+// Twilio Communications & WhatsApp Assistant (SRS §2.3, ADM-06)
+// --------------------------------------------------------------------------
+app.get("/api/twilio/status", ah(async (req, res) => {
+  const status = await getTwilioStatus();
+  res.json(status);
+}));
+
+app.post("/api/notifications/whatsapp", ah(async (req, res) => {
+  const body = validate(
+    z.object({
+      to: z.string().min(8),
+      message: z.string().min(1).max(1600),
+      channel: z.enum(["whatsapp", "sms"]).default("whatsapp")
+    }),
+    req.body,
+    req,
+    res
+  );
+  if (!body) return;
+
+  try {
+    const result = await sendTwilioMessage({
+      to: body.to,
+      body: body.message,
+      isWhatsApp: body.channel === "whatsapp"
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+      requestId: req.requestId
+    });
+  }
+}));
+
+app.post("/api/notifications/sms", ah(async (req, res) => {
+  const body = validate(
+    z.object({
+      to: z.string().min(8),
+      message: z.string().min(1).max(1600)
+    }),
+    req.body,
+    req,
+    res
+  );
+  if (!body) return;
+
+  try {
+    const result = await sendTwilioMessage({
+      to: body.to,
+      body: body.message,
+      isWhatsApp: false
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+      requestId: req.requestId
+    });
+  }
+}));
 
 // Unknown API routes
 app.use("/api", (req, res) => {
