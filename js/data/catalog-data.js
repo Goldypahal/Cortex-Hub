@@ -9,18 +9,19 @@ export const CATALOG_COMPONENTS = [
     id: "rag-chatbot",
     buyerTitle: "Internal Document Search & Q&A Assistant",
     businessCategory: "\ud83d\udcc4 Work with Documents",
-    buyerValueProp: "Get instant, verified answers from all your company contracts, policies, and files with exact page citations.",
+    buyerValueProp:
+      "Get instant, verified answers from all your company contracts, policies, and files with exact page citations.",
     channels: ["Website Chat", "Slack", "Internal Portal", "API"],
     setupComplexity: "Easy (~15 mins)",
     prerequisites: "Upload your PDF, Word, or text documents",
     goodFor: ["Legal", "Healthcare", "EdTech", "Finance"],
     measuredTelemetry: {
-        "uptime30d": "99.98%",
-        "p95Latency": "737ms",
-        "evalScore": "98.4%",
-        "activeInstalls": 342,
-        "lastUpdated": "Sep 28, 2026"
-  },
+      uptime30d: "99.98%",
+      p95Latency: "737ms",
+      evalScore: "98.4%",
+      activeInstalls: 342,
+      lastUpdated: "Sep 28, 2026"
+    },
     name: "Enterprise RAG Chatbot",
     category: "Generative AI",
     categoryBadge: "badge-indigo",
@@ -32,7 +33,8 @@ export const CATALOG_COMPONENTS = [
     sellerRating: 4.95,
     verificationStatus: "VERIFIED",
     shortDesc: "Accurate, cited question-answering over private enterprise documentation with zero hallucinations.",
-    longDesc: "Production-grade Retrieval-Augmented Generation (RAG) system engineered for high-stakes enterprise compliance. Features hybrid dense/sparse vector retrieval, context-aware re-ranking, document source attribution down to page/paragraph, and customizable security guardrails.",
+    longDesc:
+      "Production-grade Retrieval-Augmented Generation (RAG) system engineered for high-stakes enterprise compliance. Features hybrid dense/sparse vector retrieval, context-aware re-ranking, document source attribution down to page/paragraph, and customizable security guardrails.",
     coreOutput: "Cited Q&A over internal documents",
     targetBuyer: "Colleges, Law Firms, Healthcare, Insurance",
     basePrice: 499,
@@ -68,28 +70,61 @@ export const CATALOG_COMPONENTS = [
         name: "Starter",
         price: "$499",
         desc: "Ideal for small teams with up to 5,000 document pages.",
-        features: ["Up to 5,000 pages indexed", "Standard vector retrieval", "Public cloud deployment", "Community email support", "10 req/sec limit"]
+        features: [
+          "Up to 5,000 pages indexed",
+          "Standard vector retrieval",
+          "Public cloud deployment",
+          "Community email support",
+          "10 req/sec limit"
+        ]
       },
       {
         name: "Advanced",
         price: "$1,299",
         featured: true,
         desc: "Optimized for high-volume compliance & cited research.",
-        features: ["Up to 50,000 pages indexed", "Hybrid Search + Cohere Re-ranker", "Dedicated VPC deployment", "24/7 Priority SLA", "Custom security guardrails"]
+        features: [
+          "Up to 50,000 pages indexed",
+          "Hybrid Search + Cohere Re-ranker",
+          "Dedicated VPC deployment",
+          "24/7 Priority SLA",
+          "Custom security guardrails"
+        ]
       },
       {
         name: "Enterprise",
         price: "Custom",
         desc: "Air-gapped on-premise deployment with tailored fine-tuning.",
-        features: ["Unlimited document scale", "Self-hosted Llama / Mixtral", "On-premise / air-gapped options", "Custom SLA & dedicated engineer", "Full source code licensing"]
+        features: [
+          "Unlimited document scale",
+          "Self-hosted Llama / Mixtral",
+          "On-premise / air-gapped options",
+          "Custom SLA & dedicated engineer",
+          "Full source code licensing"
+        ]
       }
     ],
     architecture: [
       { step: "1", title: "Document Ingestion", desc: "PDF/DOCX OCR, Chunking & Metadata tagging", icon: "file-text" },
-      { step: "2", title: "Hybrid Indexing", desc: "pgvector dense embeddings + BM25 inverted index", icon: "database" },
-      { step: "3", title: "Re-Ranking Router", desc: "Cross-encoder semantic score & deduplication", icon: "git-branch" },
+      {
+        step: "2",
+        title: "Hybrid Indexing",
+        desc: "pgvector dense embeddings + BM25 inverted index",
+        icon: "database"
+      },
+      {
+        step: "3",
+        title: "Re-Ranking Router",
+        desc: "Cross-encoder semantic score & deduplication",
+        icon: "git-branch"
+      },
       { step: "4", title: "LLM Synthesizer", desc: "Context injection with strict grounded prompt", icon: "cpu" },
-      { step: "5", title: "Citation Engine", desc: "Attribution validation & confidence telemetry", icon: "check-circle" }
+      {
+        step: "5",
+        title: "Citation Engine",
+        desc: "Attribution validation & confidence telemetry",
+        icon: "check-circle"
+      }
     ],
     codeSnippets: {
       python: `from cortexhub import RAGChatbotClient
@@ -124,8 +159,10 @@ for citation in response.citations:
         version: "v1.3.2",
         date: "2026-08-14",
         title: "Exact byte citations eliminated hallucination liability entirely",
-        comment: "We deployed this across 40,000 pages of clinical trials. The hybrid vector + lexical search catches critical medical acronyms that standard vector stores miss.",
-        sellerReply: "Thank you Dr. Vance! The BM25 reciprocal rank tuning was specifically calibrated for technical terminology."
+        comment:
+          "We deployed this across 40,000 pages of clinical trials. The hybrid vector + lexical search catches critical medical acronyms that standard vector stores miss.",
+        sellerReply:
+          "Thank you Dr. Vance! The BM25 reciprocal rank tuning was specifically calibrated for technical terminology."
       },
       {
         id: "rev-2",
@@ -134,7 +171,8 @@ for citation in response.citations:
         version: "v1.3.1",
         date: "2026-07-29",
         title: "Passed SOC2 and HIPAA audit with zero egress",
-        comment: "The VPC deployment instructions were flawless. Our legal analysts now complete 3-hour lease reviews in 8 minutes."
+        comment:
+          "The VPC deployment instructions were flawless. Our legal analysts now complete 3-hour lease reviews in 8 minutes."
       }
     ]
   },
@@ -142,18 +180,19 @@ for citation in response.citations:
     id: "customer-support-bot",
     buyerTitle: "24/7 AI Customer Support Assistant",
     businessCategory: "\ud83d\udcac Talk to Customers",
-    buyerValueProp: "Automatically answer customer questions 24/7 across your website, WhatsApp, and email without human delay.",
+    buyerValueProp:
+      "Automatically answer customer questions 24/7 across your website, WhatsApp, and email without human delay.",
     channels: ["Website Chat", "WhatsApp", "Email", "Zendesk"],
     setupComplexity: "Fast (<10 mins)",
     prerequisites: "Connect website chat or WhatsApp Business number",
     goodFor: ["E-Commerce", "SaaS", "Hospitality", "Support Desks"],
     measuredTelemetry: {
-        "uptime30d": "99.99%",
-        "p95Latency": "480ms",
-        "evalScore": "94.2%",
-        "activeInstalls": 518,
-        "lastUpdated": "Oct 12, 2026"
-  },
+      uptime30d: "99.99%",
+      p95Latency: "480ms",
+      evalScore: "94.2%",
+      activeInstalls: 518,
+      lastUpdated: "Oct 12, 2026"
+    },
     name: "AI Customer Support Agent",
     category: "Generative AI",
     categoryBadge: "badge-indigo",
@@ -165,7 +204,8 @@ for citation in response.citations:
     sellerRating: 4.88,
     verificationStatus: "VERIFIED",
     shortDesc: "Autonomous tier-1 support agent with live website chat, CRM sync, and smart ticket escalation.",
-    longDesc: "An omnichannel customer support agent capable of resolving up to 70% of inbound tickets autonomously. Integrates seamlessly with Zendesk, Freshdesk, HubSpot, and WhatsApp Business. Detects user frustration and escalates with complete conversation summaries.",
+    longDesc:
+      "An omnichannel customer support agent capable of resolving up to 70% of inbound tickets autonomously. Integrates seamlessly with Zendesk, Freshdesk, HubSpot, and WhatsApp Business. Detects user frustration and escalates with complete conversation summaries.",
     coreOutput: "Website chat, CRM sync, automated ticket triage",
     targetBuyer: "E-Commerce, SaaS, Financial Services",
     basePrice: 599,
@@ -196,9 +236,30 @@ for citation in response.citations:
       "Multi-lingual support across 40+ languages"
     ],
     pricingTiers: [
-      { name: "Basic", price: "$599", desc: "Up to 2,000 monthly conversations.", features: ["Web chat widget", "Zendesk/HubSpot sync", "Standard AI model", "Email support"] },
-      { name: "Pro", price: "$1,499", featured: true, desc: "Up to 15,000 monthly conversations.", features: ["Omnichannel (WhatsApp + Web)", "Custom API tool actions", "Sentiment escalation", "Analytics dashboard"] },
-      { name: "Scale", price: "Custom", desc: "Unlimited conversations with dedicated SLAs.", features: ["Custom integrations", "Dedicated model tuning", "99.95% uptime SLA", "Private VPC"] }
+      {
+        name: "Basic",
+        price: "$599",
+        desc: "Up to 2,000 monthly conversations.",
+        features: ["Web chat widget", "Zendesk/HubSpot sync", "Standard AI model", "Email support"]
+      },
+      {
+        name: "Pro",
+        price: "$1,499",
+        featured: true,
+        desc: "Up to 15,000 monthly conversations.",
+        features: [
+          "Omnichannel (WhatsApp + Web)",
+          "Custom API tool actions",
+          "Sentiment escalation",
+          "Analytics dashboard"
+        ]
+      },
+      {
+        name: "Scale",
+        price: "Custom",
+        desc: "Unlimited conversations with dedicated SLAs.",
+        features: ["Custom integrations", "Dedicated model tuning", "99.95% uptime SLA", "Private VPC"]
+      }
     ],
     architecture: [
       { step: "1", title: "Channel Ingress", desc: "Web Widget / WhatsApp Webhook", icon: "message-square" },
@@ -237,18 +298,19 @@ print("Bot Action:", ticket.suggested_action)`,
     id: "resume-screener",
     buyerTitle: "Candidate Resume Matcher & Screener",
     businessCategory: "\ud83d\udc65 Manage Employees",
-    buyerValueProp: "Instantly rank and score job applicants against job descriptions with unbiased competency scoring.",
+    buyerValueProp:
+      "Instantly rank and score job applicants against job descriptions with unbiased competency scoring.",
     channels: ["Greenhouse", "Lever", "CSV / PDF Upload", "API"],
     setupComplexity: "Instant (<5 mins)",
     prerequisites: "Job descriptions and candidate resume files",
     goodFor: ["Recruiting Agencies", "HR Teams", "Enterprises"],
     measuredTelemetry: {
-        "uptime30d": "99.95%",
-        "p95Latency": "620ms",
-        "evalScore": "96.1%",
-        "activeInstalls": 184,
-        "lastUpdated": "Sep 15, 2026"
-  },
+      uptime30d: "99.95%",
+      p95Latency: "620ms",
+      evalScore: "96.1%",
+      activeInstalls: 184,
+      lastUpdated: "Sep 15, 2026"
+    },
     name: "Resume Screening & Match Engine",
     category: "Machine Learning",
     categoryBadge: "badge-cyan",
@@ -260,7 +322,8 @@ print("Bot Action:", ticket.suggested_action)`,
     sellerRating: 4.82,
     verificationStatus: "VERIFIED",
     shortDesc: "Semantic candidate profiling, skill gap extraction, and unbiased job requisition ranking.",
-    longDesc: "High-throughput resume parser that extracts structured skills, work history, and educational timelines from multi-format CVs. Computes multidimensional semantic fit scores against complex job descriptions while eliminating unconscious bias.",
+    longDesc:
+      "High-throughput resume parser that extracts structured skills, work history, and educational timelines from multi-format CVs. Computes multidimensional semantic fit scores against complex job descriptions while eliminating unconscious bias.",
     coreOutput: "Structured candidate scorecards & skill taxonomy",
     targetBuyer: "Recruitment Agencies, Enterprise HR, Tech Staffing",
     basePrice: 699,
@@ -291,9 +354,25 @@ print("Bot Action:", ticket.suggested_action)`,
       "Automated interview question suggestion based on skill gaps"
     ],
     pricingTiers: [
-      { name: "Starter", price: "$699", desc: "Up to 1,000 resume parses/mo.", features: ["Standard skill extraction", "PDF/DOCX parsing", "CSV/JSON export", "Email support"] },
-      { name: "Agency", price: "$1,899", featured: true, desc: "Up to 10,000 resume parses/mo.", features: ["Deep semantic matching", "ATS 2-way sync", "Bias anonymization", "Batch API"] },
-      { name: "Enterprise", price: "Custom", desc: "Unlimited parsing with private data isolation.", features: ["Custom skill taxonomy", "On-premise deployment", "Dedicated model fine-tuning"] }
+      {
+        name: "Starter",
+        price: "$699",
+        desc: "Up to 1,000 resume parses/mo.",
+        features: ["Standard skill extraction", "PDF/DOCX parsing", "CSV/JSON export", "Email support"]
+      },
+      {
+        name: "Agency",
+        price: "$1,899",
+        featured: true,
+        desc: "Up to 10,000 resume parses/mo.",
+        features: ["Deep semantic matching", "ATS 2-way sync", "Bias anonymization", "Batch API"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "Unlimited parsing with private data isolation.",
+        features: ["Custom skill taxonomy", "On-premise deployment", "Dedicated model fine-tuning"]
+      }
     ],
     architecture: [
       { step: "1", title: "CV Parser", desc: "Extract layouts, tables, and timeline entities", icon: "file-text" },
@@ -324,7 +403,8 @@ print(f"Top Skills: {result.matched_skills}")`,
         version: "v1.4.0",
         date: "2026-08-20",
         title: "Cut initial candidate filtering from 4 days to 25 minutes",
-        comment: "The blind audit algorithm eliminated demographic bias and surfaced top engineering talent we previously overlooked."
+        comment:
+          "The blind audit algorithm eliminated demographic bias and surfaced top engineering talent we previously overlooked."
       }
     ]
   },
@@ -332,18 +412,19 @@ print(f"Top Skills: {result.matched_skills}")`,
     id: "doc-analyzer",
     buyerTitle: "Invoice & Contract Data Extractor",
     businessCategory: "\ud83d\udcc4 Work with Documents",
-    buyerValueProp: "Extract structured numbers, line items, and terms from invoices, receipts, and agreements into Excel or databases.",
+    buyerValueProp:
+      "Extract structured numbers, line items, and terms from invoices, receipts, and agreements into Excel or databases.",
     channels: ["Email Ingestion", "Google Drive", "ERP Sync", "API"],
     setupComplexity: "Easy (~15 mins)",
     prerequisites: "Sample invoices or contract PDFs",
     goodFor: ["Accounting", "Logistics", "Procurement", "Legal"],
     measuredTelemetry: {
-        "uptime30d": "99.97%",
-        "p95Latency": "890ms",
-        "evalScore": "97.8%",
-        "activeInstalls": 279,
-        "lastUpdated": "Oct 04, 2026"
-  },
+      uptime30d: "99.97%",
+      p95Latency: "890ms",
+      evalScore: "97.8%",
+      activeInstalls: 279,
+      lastUpdated: "Oct 04, 2026"
+    },
     name: "AI Document Analyzer & Extractor",
     category: "Computer Vision",
     categoryBadge: "badge-cyan",
@@ -355,7 +436,8 @@ print(f"Top Skills: {result.matched_skills}")`,
     sellerRating: 4.92,
     verificationStatus: "VERIFIED",
     shortDesc: "Intelligent table extraction, financial clause verification, and multi-doc cross comparison.",
-    longDesc: "Engineered for finance, audit, insurance, and legal teams. Ingests complex multi-page financial statements, insurance policies, and supplier contracts to extract tabular data, identify conflicting clauses, and produce structured audit sheets.",
+    longDesc:
+      "Engineered for finance, audit, insurance, and legal teams. Ingests complex multi-page financial statements, insurance policies, and supplier contracts to extract tabular data, identify conflicting clauses, and produce structured audit sheets.",
     coreOutput: "JSON field extraction & multi-clause delta reports",
     targetBuyer: "Legal Firms, Hedge Funds, Insurance Underwriters",
     basePrice: 799,
@@ -386,9 +468,25 @@ print(f"Top Skills: {result.matched_skills}")`,
       "Automated executive summary generation"
     ],
     pricingTiers: [
-      { name: "Standard", price: "$799", desc: "Up to 500 documents/mo.", features: ["Key-value field extraction", "Table recognition", "REST API", "Email support"] },
-      { name: "Professional", price: "$1,999", featured: true, desc: "Up to 3,000 documents/mo.", features: ["Cross-doc comparisons", "Pixel-coordinate citations", "Custom JSON schemas", "Priority support"] },
-      { name: "Enterprise", price: "Custom", desc: "High volume enterprise processing.", features: ["Unlimited docs", "Private cloud/On-prem", "Custom OCR models", "Dedicated support"] }
+      {
+        name: "Standard",
+        price: "$799",
+        desc: "Up to 500 documents/mo.",
+        features: ["Key-value field extraction", "Table recognition", "REST API", "Email support"]
+      },
+      {
+        name: "Professional",
+        price: "$1,999",
+        featured: true,
+        desc: "Up to 3,000 documents/mo.",
+        features: ["Cross-doc comparisons", "Pixel-coordinate citations", "Custom JSON schemas", "Priority support"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "High volume enterprise processing.",
+        features: ["Unlimited docs", "Private cloud/On-prem", "Custom OCR models", "Dedicated support"]
+      }
     ],
     architecture: [
       { step: "1", title: "Layout OCR", desc: "Pixel-level text & table bounding box detection", icon: "grid" },
@@ -418,7 +516,8 @@ print("Extracted Lease Data:", extracted.data)`,
         version: "v2.0.1",
         date: "2026-08-10",
         title: "Pixel-level bounding box links made internal audit pass smoothly",
-        comment: "Our auditors loved that clicking any extracted EBITDA or interest rate jumps straight to the exact page coordinates in the source PDF."
+        comment:
+          "Our auditors loved that clicking any extracted EBITDA or interest rate jumps straight to the exact page coordinates in the source PDF."
       }
     ]
   },
@@ -426,18 +525,19 @@ print("Extracted Lease Data:", extracted.data)`,
     id: "meeting-summarizer",
     buyerTitle: "Meeting Notes & Action Item Copilot",
     businessCategory: "\u2699\ufe0f Automate Work",
-    buyerValueProp: "Turn meeting transcripts and call recordings into executive summaries, action items, and task assignments automatically.",
+    buyerValueProp:
+      "Turn meeting transcripts and call recordings into executive summaries, action items, and task assignments automatically.",
     channels: ["Zoom", "Google Meet", "Teams", "Slack"],
     setupComplexity: "Fast (<10 mins)",
     prerequisites: "Meeting recording audio or transcript text",
     goodFor: ["Executive Teams", "Consultancies", "Agile Squads"],
     measuredTelemetry: {
-        "uptime30d": "99.96%",
-        "p95Latency": "1,120ms",
-        "evalScore": "95.5%",
-        "activeInstalls": 412,
-        "lastUpdated": "Sep 22, 2026"
-  },
+      uptime30d: "99.96%",
+      p95Latency: "1,120ms",
+      evalScore: "95.5%",
+      activeInstalls: 412,
+      lastUpdated: "Sep 22, 2026"
+    },
     name: "Meeting Intelligence & Action Engine",
     category: "Developer Tools",
     categoryBadge: "badge-emerald",
@@ -449,7 +549,8 @@ print("Extracted Lease Data:", extracted.data)`,
     sellerRating: 4.88,
     verificationStatus: "VERIFIED",
     shortDesc: "Speaker-separated transcript analysis, decision tracking, and Jira/Asana task generation.",
-    longDesc: "Transforms raw multi-speaker audio transcripts into concise executive briefs, key decisions logs, and Jira/Linear work items assigned to participants with deadlines.",
+    longDesc:
+      "Transforms raw multi-speaker audio transcripts into concise executive briefs, key decisions logs, and Jira/Linear work items assigned to participants with deadlines.",
     coreOutput: "Executive meeting summaries & assigned action items",
     targetBuyer: "Startups, Remote Engineering Teams, Consultancies",
     basePrice: 399,
@@ -480,9 +581,25 @@ print("Extracted Lease Data:", extracted.data)`,
       "Confidential conversation redaction (PII/Financial)"
     ],
     pricingTiers: [
-      { name: "Team", price: "$399", desc: "Up to 50 hours of audio/mo.", features: ["Speaker summaries", "Action items", "Notion sync", "Email support"] },
-      { name: "Business", price: "$899", featured: true, desc: "Up to 200 hours of audio/mo.", features: ["Jira/Linear auto-tickets", "Zoom/Teams bot integration", "Sentiment trends"] },
-      { name: "Enterprise", price: "Custom", desc: "Custom retention with airgap options.", features: ["Unlimited hours", "Custom PII masking", "On-prem transcript storage"] }
+      {
+        name: "Team",
+        price: "$399",
+        desc: "Up to 50 hours of audio/mo.",
+        features: ["Speaker summaries", "Action items", "Notion sync", "Email support"]
+      },
+      {
+        name: "Business",
+        price: "$899",
+        featured: true,
+        desc: "Up to 200 hours of audio/mo.",
+        features: ["Jira/Linear auto-tickets", "Zoom/Teams bot integration", "Sentiment trends"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "Custom retention with airgap options.",
+        features: ["Unlimited hours", "Custom PII masking", "On-prem transcript storage"]
+      }
     ],
     architecture: [
       { step: "1", title: "Audio Ingest", desc: "Diarized STT speech-to-text pipeline", icon: "mic" },
@@ -512,7 +629,8 @@ print("Action Items:", summary.action_items)`,
         version: "v1.1.0",
         date: "2026-08-30",
         title: "Clean Linear tickets created right after our sprint planning",
-        comment: "No more forgotten action items. It accurately assigns tasks to the right dev and includes context quotes."
+        comment:
+          "No more forgotten action items. It accurately assigns tasks to the right dev and includes context quotes."
       }
     ]
   },
@@ -520,18 +638,19 @@ print("Action Items:", summary.action_items)`,
     id: "recs-engine",
     buyerTitle: "E-Commerce Product Recommender",
     businessCategory: "\ud83d\uded2 Increase Sales",
-    buyerValueProp: "Boost checkout average order value by showing personalized product recommendations and bundle suggestions.",
+    buyerValueProp:
+      "Boost checkout average order value by showing personalized product recommendations and bundle suggestions.",
     channels: ["Shopify", "WooCommerce", "Custom Web Store", "API"],
     setupComplexity: "Easy (~20 mins)",
     prerequisites: "Product catalog CSV or store API credentials",
     goodFor: ["Online Retail", "B2B Marketplaces", "Content Portals"],
     measuredTelemetry: {
-        "uptime30d": "99.99%",
-        "p95Latency": "140ms",
-        "evalScore": "96.9%",
-        "activeInstalls": 630,
-        "lastUpdated": "Oct 19, 2026"
-  },
+      uptime30d: "99.99%",
+      p95Latency: "140ms",
+      evalScore: "96.9%",
+      activeInstalls: 630,
+      lastUpdated: "Oct 19, 2026"
+    },
     name: "AI Personalization & Recommendation Engine",
     category: "Machine Learning",
     categoryBadge: "badge-amber",
@@ -543,7 +662,8 @@ print("Action Items:", summary.action_items)`,
     sellerRating: 4.96,
     verificationStatus: "VERIFIED",
     shortDesc: "Real-time user vector embeddings, next-best-action prediction, and dynamic content re-ranking.",
-    longDesc: "High-performance vector recommendation engine processing tens of thousands of requests per second with under 15ms latency. Computes dynamic user taste vectors combining past purchases, browse history, and real-time session behavior.",
+    longDesc:
+      "High-performance vector recommendation engine processing tens of thousands of requests per second with under 15ms latency. Computes dynamic user taste vectors combining past purchases, browse history, and real-time session behavior.",
     coreOutput: "Ranked personalized product & content feeds",
     targetBuyer: "EdTech, E-Commerce, Streaming Media",
     basePrice: 899,
@@ -574,9 +694,25 @@ print("Action Items:", summary.action_items)`,
       "SDKs for Python, Node.js, Go, and Java"
     ],
     pricingTiers: [
-      { name: "Growth", price: "$899", desc: "Up to 500,000 rec calls/mo.", features: ["User vector tracking", "Product graph", "REST API", "Standard SLA"] },
-      { name: "Scale", price: "$2,499", featured: true, desc: "Up to 5,000,000 rec calls/mo.", features: ["Real-time session updates", "Multi-region cluster", "A/B telemetry", "24/7 SLA"] },
-      { name: "Enterprise", price: "Custom", desc: "Dedicated bare-metal vector nodes.", features: ["Unlimited volume", "Custom algorithmic graph", "Dedicated engineer"] }
+      {
+        name: "Growth",
+        price: "$899",
+        desc: "Up to 500,000 rec calls/mo.",
+        features: ["User vector tracking", "Product graph", "REST API", "Standard SLA"]
+      },
+      {
+        name: "Scale",
+        price: "$2,499",
+        featured: true,
+        desc: "Up to 5,000,000 rec calls/mo.",
+        features: ["Real-time session updates", "Multi-region cluster", "A/B telemetry", "24/7 SLA"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "Dedicated bare-metal vector nodes.",
+        features: ["Unlimited volume", "Custom algorithmic graph", "Dedicated engineer"]
+      }
     ],
     architecture: [
       { step: "1", title: "Clickstream Ingest", desc: "Real-time event stream via Kafka / Kinesis", icon: "activity" },
@@ -608,7 +744,8 @@ for p in products:
         version: "v2.2.0",
         date: "2026-07-15",
         title: "Immediate 28% increase in average order value",
-        comment: "The session-aware re-ranking catches in-session intent shifts within 2 clicks. P95 latency consistently holds under 14ms."
+        comment:
+          "The session-aware re-ranking catches in-session intent shifts within 2 clicks. P95 latency consistently holds under 14ms."
       }
     ]
   },
@@ -616,18 +753,19 @@ for p in products:
     id: "semantic-search",
     buyerTitle: "Smart Enterprise Search Engine",
     businessCategory: "\ud83d\udd0e Find Information",
-    buyerValueProp: "Give your users Google-quality search that understands intent and context, even with typos or synonyms.",
+    buyerValueProp:
+      "Give your users Google-quality search that understands intent and context, even with typos or synonyms.",
     channels: ["REST API", "Website Widget", "PostgreSQL / Elasticsearch"],
     setupComplexity: "Developer Guided (<30 mins)",
     prerequisites: "Searchable data source or database connection",
     goodFor: ["SaaS Platforms", "Documentation Sites", "Media Catalogs"],
     measuredTelemetry: {
-        "uptime30d": "99.99%",
-        "p95Latency": "85ms",
-        "evalScore": "99.1%",
-        "activeInstalls": 755,
-        "lastUpdated": "Oct 24, 2026"
-  },
+      uptime30d: "99.99%",
+      p95Latency: "85ms",
+      evalScore: "99.1%",
+      activeInstalls: 755,
+      lastUpdated: "Oct 24, 2026"
+    },
     name: "Semantic Neural Search API",
     category: "NLP",
     categoryBadge: "badge-amber",
@@ -639,7 +777,8 @@ for p in products:
     sellerRating: 4.96,
     verificationStatus: "VERIFIED",
     shortDesc: "Meaning-based multi-modal search combining semantic vector distance with full-text BM25.",
-    longDesc: "Drop-in replacement for legacy keyword search engines. Understands synonyms, intent, typographical errors, and contextual semantics across product databases, documentation, and customer records.",
+    longDesc:
+      "Drop-in replacement for legacy keyword search engines. Understands synonyms, intent, typographical errors, and contextual semantics across product databases, documentation, and customer records.",
     coreOutput: "Ranked semantic query hits with snippet highlights",
     targetBuyer: "SaaS Platforms, Internal Knowledge Portals",
     basePrice: 549,
@@ -670,9 +809,25 @@ for p in products:
       "Ready-to-use search UI component for React and Vue"
     ],
     pricingTiers: [
-      { name: "Developer", price: "$549", desc: "Up to 100,000 search queries/mo.", features: ["Hybrid search", "Instant indexing", "REST API", "Community support"] },
-      { name: "Team", price: "$1,399", featured: true, desc: "Up to 1,000,000 search queries/mo.", features: ["Custom embeddings", "Zero-downtime re-indexing", "Faceted filtering", "99.9% SLA"] },
-      { name: "Enterprise", price: "Custom", desc: "Multi-cluster private cloud deployment.", features: ["Unlimited queries", "Dedicated Milvus/Qdrant cluster", "Custom ranking models"] }
+      {
+        name: "Developer",
+        price: "$549",
+        desc: "Up to 100,000 search queries/mo.",
+        features: ["Hybrid search", "Instant indexing", "REST API", "Community support"]
+      },
+      {
+        name: "Team",
+        price: "$1,399",
+        featured: true,
+        desc: "Up to 1,000,000 search queries/mo.",
+        features: ["Custom embeddings", "Zero-downtime re-indexing", "Faceted filtering", "99.9% SLA"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "Multi-cluster private cloud deployment.",
+        features: ["Unlimited queries", "Dedicated Milvus/Qdrant cluster", "Custom ranking models"]
+      }
     ],
     architecture: [
       { step: "1", title: "Query Embedding", desc: "Transformer tokenization & dense embedding", icon: "search" },
@@ -704,7 +859,8 @@ for hit in results.hits:
         version: "v1.2.5",
         date: "2026-08-05",
         title: "Replaced our fragile Elasticsearch cluster in 3 days",
-        comment: "Zero zero-hit queries since deployment. The reciprocal rank fusion gracefully balances exact SKU searches with conceptual intent."
+        comment:
+          "Zero zero-hit queries since deployment. The reciprocal rank fusion gracefully balances exact SKU searches with conceptual intent."
       }
     ]
   },
@@ -712,18 +868,19 @@ for hit in results.hits:
     id: "quiz-generator",
     buyerTitle: "Automated Exam & Quiz Creator",
     businessCategory: "\u270d\ufe0f Create Content",
-    buyerValueProp: "Generate multiple-choice questions, flashcards, and grading rubrics from textbooks or training modules in seconds.",
+    buyerValueProp:
+      "Generate multiple-choice questions, flashcards, and grading rubrics from textbooks or training modules in seconds.",
     channels: ["Canvas", "Moodle", "Web Portal", "PDF Export"],
     setupComplexity: "Instant (<5 mins)",
     prerequisites: "Course materials, slides, or training PDFs",
     goodFor: ["Corporate Training", "Universities", "EdTech Companies"],
     measuredTelemetry: {
-        "uptime30d": "99.94%",
-        "p95Latency": "940ms",
-        "evalScore": "93.8%",
-        "activeInstalls": 160,
-        "lastUpdated": "Sep 10, 2026"
-  },
+      uptime30d: "99.94%",
+      p95Latency: "940ms",
+      evalScore: "93.8%",
+      activeInstalls: 160,
+      lastUpdated: "Sep 10, 2026"
+    },
     name: "AI Quiz & Assessment Generator",
     category: "EdTech",
     categoryBadge: "badge-cyan",
@@ -735,7 +892,8 @@ for hit in results.hits:
     sellerRating: 4.82,
     verificationStatus: "VERIFIED",
     shortDesc: "Pedagogical test creation with difficulty tiering, distractor validation, and explanation rationales.",
-    longDesc: "Engineered for colleges, universities, and EdTech platforms. Transforms textbook chapters, lecture notes, or syllabi into rigorous multiple choice, short answer, and coding assessments calibrated to Bloom's taxonomy.",
+    longDesc:
+      "Engineered for colleges, universities, and EdTech platforms. Transforms textbook chapters, lecture notes, or syllabi into rigorous multiple choice, short answer, and coding assessments calibrated to Bloom's taxonomy.",
     coreOutput: "Calibrated question banks with explanations",
     targetBuyer: "Universities, EdTech Companies, Corporate Learning",
     basePrice: 349,
@@ -766,14 +924,40 @@ for hit in results.hits:
       "Plagiarism-proof procedural question variations"
     ],
     pricingTiers: [
-      { name: "Educator", price: "$349", desc: "Up to 500 generated quizzes/mo.", features: ["MCQ & Short Answer", "Bloom's taxonomy filter", "QTI LMS export", "Email support"] },
-      { name: "Campus", price: "$999", featured: true, desc: "Up to 5,000 generated quizzes/mo.", features: ["Bulk textbook ingestion", "Canvas/Moodle integration", "Question bank storage"] },
-      { name: "Institution", price: "Custom", desc: "Unlimited institutional deployment.", features: ["Custom pedagogical models", "Single Sign-On (SAML)", "FERPA compliant hosting"] }
+      {
+        name: "Educator",
+        price: "$349",
+        desc: "Up to 500 generated quizzes/mo.",
+        features: ["MCQ & Short Answer", "Bloom's taxonomy filter", "QTI LMS export", "Email support"]
+      },
+      {
+        name: "Campus",
+        price: "$999",
+        featured: true,
+        desc: "Up to 5,000 generated quizzes/mo.",
+        features: ["Bulk textbook ingestion", "Canvas/Moodle integration", "Question bank storage"]
+      },
+      {
+        name: "Institution",
+        price: "Custom",
+        desc: "Unlimited institutional deployment.",
+        features: ["Custom pedagogical models", "Single Sign-On (SAML)", "FERPA compliant hosting"]
+      }
     ],
     architecture: [
-      { step: "1", title: "Curriculum Ingest", desc: "Segment syllabus & textbooks into learning goals", icon: "book-open" },
+      {
+        step: "1",
+        title: "Curriculum Ingest",
+        desc: "Segment syllabus & textbooks into learning goals",
+        icon: "book-open"
+      },
       { step: "2", title: "Concept Extraction", desc: "Identify core principles & key terminology", icon: "cpu" },
-      { step: "3", title: "Question Synthesis", desc: "Draft stems & calibrated plausible distractors", icon: "help-circle" },
+      {
+        step: "3",
+        title: "Question Synthesis",
+        desc: "Draft stems & calibrated plausible distractors",
+        icon: "help-circle"
+      },
       { step: "4", title: "LMS Packaging", desc: "Format into QTI / JSON / CSV format", icon: "download" }
     ],
     codeSnippets: {
@@ -801,7 +985,8 @@ for q in quiz.questions:
         version: "v1.0.8",
         date: "2026-09-08",
         title: "Distractor generation is academically sound",
-        comment: "Unlike naive LLM prompts that generate obviously fake wrong choices, this engine models common conceptual misconceptions."
+        comment:
+          "Unlike naive LLM prompts that generate obviously fake wrong choices, this engine models common conceptual misconceptions."
       }
     ]
   },
@@ -809,18 +994,19 @@ for q in quiz.questions:
     id: "report-generator",
     buyerTitle: "Automated BI & KPI Report Generator",
     businessCategory: "\ud83d\udcca Understand Data",
-    buyerValueProp: "Transform raw spreadsheets and analytics data into polished executive PDF reports with natural language insights.",
+    buyerValueProp:
+      "Transform raw spreadsheets and analytics data into polished executive PDF reports with natural language insights.",
     channels: ["Scheduled Email", "Google Sheets", "PowerBI / Tableau", "Slack"],
     setupComplexity: "Easy (~15 mins)",
     prerequisites: "Database read-only connection or CSV export",
     goodFor: ["Finance Teams", "Marketing Agencies", "Ops Leads"],
     measuredTelemetry: {
-        "uptime30d": "99.97%",
-        "p95Latency": "1,450ms",
-        "evalScore": "97.2%",
-        "activeInstalls": 215,
-        "lastUpdated": "Oct 08, 2026"
-  },
+      uptime30d: "99.97%",
+      p95Latency: "1,450ms",
+      evalScore: "97.2%",
+      activeInstalls: 215,
+      lastUpdated: "Oct 08, 2026"
+    },
     name: "AI Autonomous Report Generator",
     category: "Computer Vision",
     categoryBadge: "badge-cyan",
@@ -832,7 +1018,8 @@ for q in quiz.questions:
     sellerRating: 4.92,
     verificationStatus: "VERIFIED",
     shortDesc: "Synthesis of multi-source metrics, tables, and charts into executive PDF & Slide decks.",
-    longDesc: "Connects directly to your data warehouses (Snowflake, BigQuery, Postgres) and operational logs to synthesize structured weekly, monthly, and quarterly business intelligence briefs complete with charts, executive takeaways, and anomaly detection.",
+    longDesc:
+      "Connects directly to your data warehouses (Snowflake, BigQuery, Postgres) and operational logs to synthesize structured weekly, monthly, and quarterly business intelligence briefs complete with charts, executive takeaways, and anomaly detection.",
     coreOutput: "Publication-grade branded PDF & PPTX reports",
     targetBuyer: "Financial Analysts, Corporate Strategy, Operations",
     basePrice: 649,
@@ -863,13 +1050,34 @@ for q in quiz.questions:
       "Executive TL;DR highlight blocks"
     ],
     pricingTiers: [
-      { name: "Analyst", price: "$649", desc: "Up to 100 reports/mo.", features: ["Postgres/MySQL connectors", "PDF export", "Standard chart templates", "Email support"] },
-      { name: "Enterprise BI", price: "$1,699", featured: true, desc: "Up to 1,000 reports/mo.", features: ["Snowflake & BigQuery sync", "Branded PPTX/PDF generation", "Slack/Email schedule"] },
-      { name: "Executive", price: "Custom", desc: "Full white-label enterprise reporting engine.", features: ["Unlimited reports", "Dedicated private VPC", "Custom styling & branding"] }
+      {
+        name: "Analyst",
+        price: "$649",
+        desc: "Up to 100 reports/mo.",
+        features: ["Postgres/MySQL connectors", "PDF export", "Standard chart templates", "Email support"]
+      },
+      {
+        name: "Enterprise BI",
+        price: "$1,699",
+        featured: true,
+        desc: "Up to 1,000 reports/mo.",
+        features: ["Snowflake & BigQuery sync", "Branded PPTX/PDF generation", "Slack/Email schedule"]
+      },
+      {
+        name: "Executive",
+        price: "Custom",
+        desc: "Full white-label enterprise reporting engine.",
+        features: ["Unlimited reports", "Dedicated private VPC", "Custom styling & branding"]
+      }
     ],
     architecture: [
       { step: "1", title: "Data Pipeline", desc: "Execute SQL query on Data Warehouse", icon: "database" },
-      { step: "2", title: "Metric Analysis", desc: "Compute trends, variances & anomalous deltas", icon: "trending-up" },
+      {
+        step: "2",
+        title: "Metric Analysis",
+        desc: "Compute trends, variances & anomalous deltas",
+        icon: "trending-up"
+      },
       { step: "3", title: "Narrative Synthesis", desc: "Draft executive brief explaining the 'Why'", icon: "edit-3" },
       { step: "4", title: "Document Render", desc: "Generate print-ready vector PDF & PPTX", icon: "file" }
     ],
@@ -904,18 +1112,19 @@ print("Report PDF URL:", report.download_url)`,
     id: "git-repair-agent",
     buyerTitle: "Automated Code Review & Bug Fixer",
     businessCategory: "\u2699\ufe0f Automate Work",
-    buyerValueProp: "Automatically review pull requests, detect security bugs, and propose verified code fixes before shipping.",
+    buyerValueProp:
+      "Automatically review pull requests, detect security bugs, and propose verified code fixes before shipping.",
     channels: ["GitHub Actions", "GitLab CI", "Bitbucket", "Terminal CLI"],
     setupComplexity: "Easy (~10 mins)",
     prerequisites: "GitHub or GitLab repository access",
     goodFor: ["Software Teams", "Indie Hackers", "DevOps Engineers"],
     measuredTelemetry: {
-        "uptime30d": "99.95%",
-        "p95Latency": "1,820ms",
-        "evalScore": "92.7%",
-        "activeInstalls": 390,
-        "lastUpdated": "Oct 16, 2026"
-  },
+      uptime30d: "99.95%",
+      p95Latency: "1,820ms",
+      evalScore: "92.7%",
+      activeInstalls: 390,
+      lastUpdated: "Oct 16, 2026"
+    },
     name: "AI Git & CI/CD Repair Agent",
     category: "Developer Tools",
     categoryBadge: "badge-indigo",
@@ -927,7 +1136,8 @@ print("Report PDF URL:", report.download_url)`,
     sellerRating: 4.95,
     verificationStatus: "VERIFIED",
     shortDesc: "Automated build error localization, syntax repair generation, and Git PR synthesis.",
-    longDesc: "Autonomous developer companion that listens to CI/CD pipeline failure webhooks (GitHub Actions, GitLab CI), analyzes build logs and stack traces, isolates failing files, drafts targeted code diffs, and opens a pull request with explanatory unit tests.",
+    longDesc:
+      "Autonomous developer companion that listens to CI/CD pipeline failure webhooks (GitHub Actions, GitLab CI), analyzes build logs and stack traces, isolates failing files, drafts targeted code diffs, and opens a pull request with explanatory unit tests.",
     coreOutput: "Tested code patches & automated Pull Requests",
     targetBuyer: "Engineering Teams, DevOps, Open Source Maintainers",
     basePrice: 749,
@@ -958,14 +1168,35 @@ print("Report PDF URL:", report.download_url)`,
       "Branch isolation with zero direct push to production"
     ],
     pricingTiers: [
-      { name: "Dev Team", price: "$749", desc: "Up to 5 repositories & 200 fixes/mo.", features: ["GitHub Actions sync", "Automated PR creation", "Syntax & runtime fixes", "Email support"] },
-      { name: "DevOps Scale", price: "$1,899", featured: true, desc: "Up to 25 repositories & 1,500 fixes/mo.", features: ["GitLab CI & Jenkins", "Multi-file refactoring", "Test suite execution", "Priority SLA"] },
-      { name: "Enterprise", price: "Custom", desc: "Air-gapped on-premise code security.", features: ["Self-hosted Git servers", "Zero code data egress", "Dedicated model fine-tuning"] }
+      {
+        name: "Dev Team",
+        price: "$749",
+        desc: "Up to 5 repositories & 200 fixes/mo.",
+        features: ["GitHub Actions sync", "Automated PR creation", "Syntax & runtime fixes", "Email support"]
+      },
+      {
+        name: "DevOps Scale",
+        price: "$1,899",
+        featured: true,
+        desc: "Up to 25 repositories & 1,500 fixes/mo.",
+        features: ["GitLab CI & Jenkins", "Multi-file refactoring", "Test suite execution", "Priority SLA"]
+      },
+      {
+        name: "Enterprise",
+        price: "Custom",
+        desc: "Air-gapped on-premise code security.",
+        features: ["Self-hosted Git servers", "Zero code data egress", "Dedicated model fine-tuning"]
+      }
     ],
     architecture: [
       { step: "1", title: "CI Log Ingest", desc: "Parse failing build logs & stack traces", icon: "alert-circle" },
       { step: "2", title: "AST Localization", desc: "Identify exact source line & dependencies", icon: "code" },
-      { step: "3", title: "Diff Generator", desc: "Synthesize targeted fix & regression test", icon: "git-pull-request" },
+      {
+        step: "3",
+        title: "Diff Generator",
+        desc: "Synthesize targeted fix & regression test",
+        icon: "git-pull-request"
+      },
       { step: "4", title: "PR Dispatch", desc: "Open PR on GitHub/GitLab with test proof", icon: "check-circle" }
     ],
     codeSnippets: {
@@ -991,7 +1222,8 @@ print(f"Repair PR Created: {repair_job.pull_request_url}")`,
         version: "v2.3.0",
         date: "2026-09-11",
         title: "Turns broken midnight builds into merged PRs before 8 AM",
-        comment: "The AST patch generator doesn't do sloppy rewrites. It makes precise two-line fixes with accompanying unit tests that actually verify the fix."
+        comment:
+          "The AST patch generator doesn't do sloppy rewrites. It makes precise two-line fixes with accompanying unit tests that actually verify the fix."
       }
     ]
   }

@@ -30,7 +30,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #FFF;
+  color: #fff;
 }
 
 .admin-subtext {
@@ -121,7 +121,7 @@
   font-family: var(--font-heading);
   font-weight: 700;
   font-size: 0.88rem;
-  color: #FFF;
+  color: #fff;
 }
 
 .k-card-component {
@@ -182,7 +182,7 @@
   font-family: var(--font-heading);
   font-size: 1.8rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
 
 .rev-sub {
@@ -239,5 +239,5 @@
 .scope-item-val {
   font-size: 0.84rem;
   font-weight: 700;
-  color: #FFF;
+  color: #fff;
 }

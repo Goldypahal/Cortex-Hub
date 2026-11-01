@@ -174,7 +174,10 @@ export class AdminView {
 
       body.querySelectorAll(".btn-reject-mod").forEach((btn) => {
         btn.addEventListener("click", async () => {
-          const reason = prompt("Enter revision feedback for seller:", "Please expand hardware benchmark results and provide Dockerfile.");
+          const reason = prompt(
+            "Enter revision feedback for seller:",
+            "Please expand hardware benchmark results and provide Dockerfile."
+          );
           if (reason) {
             await this.app.api.moderateProduct(btn.dataset.id, "REJECT", reason);
             showToast("Component rejected and feedback sent to seller.", "info");
@@ -183,7 +186,9 @@ export class AdminView {
         });
       });
     } else if (this.activeTab === "kanban") {
-      const requests = this.isLive ? await this.app.refreshCustomizationRequests() : this.app.getCustomizationRequests();
+      const requests = this.isLive
+        ? await this.app.refreshCustomizationRequests()
+        : this.app.getCustomizationRequests();
 
       const columns = [
         { id: "Submitted", title: "NEW SUBMITTED", count: 0, cards: [] },
@@ -428,7 +433,14 @@ export class AdminView {
       });
       body.querySelectorAll(".btn-payout").forEach((btn) => {
         btn.addEventListener("click", async () => {
-          if (!confirm(btn.dataset.status === "PAID" ? "Mark this payout as paid? Only do this after the transfer has gone out." : "Mark as failed? The amount returns to the seller's balance.")) return;
+          if (
+            !confirm(
+              btn.dataset.status === "PAID"
+                ? "Mark this payout as paid? Only do this after the transfer has gone out."
+                : "Mark as failed? The amount returns to the seller's balance."
+            )
+          )
+            return;
           try {
             await this.app.api.updatePayout(btn.dataset.id, btn.dataset.status);
             this.renderTabContent(container);

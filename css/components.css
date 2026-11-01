@@ -51,7 +51,7 @@
 .btn-secondary:hover {
   background: var(--bg-surface-3);
   border-color: var(--border-strong);
-  color: #FFF;
+  color: #fff;
 }
 
 .btn-outline {
@@ -191,7 +191,9 @@
   justify-content: space-between;
 }
 
-.text-input, .select-input, .textarea-input {
+.text-input,
+.select-input,
+.textarea-input {
   background: var(--bg-surface-2);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-xs);
@@ -204,7 +206,9 @@
   width: 100%;
 }
 
-.text-input:focus, .select-input:focus, .textarea-input:focus {
+.text-input:focus,
+.select-input:focus,
+.textarea-input:focus {
   border-color: var(--accent-lime);
 }
 
@@ -230,11 +234,14 @@
 .toggle-slider {
   position: absolute;
   cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: var(--bg-surface-3);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-xs);
-  transition: .2s;
+  transition: 0.2s;
 }
 
 .toggle-slider:before {
@@ -246,7 +253,7 @@
   bottom: 3px;
   background-color: var(--text-muted);
   border-radius: var(--radius-xs);
-  transition: .2s;
+  transition: 0.2s;
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -333,7 +340,10 @@
 /* Modals */
 .modal-backdrop {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(3, 4, 6, 0.85);
   backdrop-filter: blur(6px);
   z-index: var(--z-modal);
@@ -366,8 +376,14 @@
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-header {
@@ -383,7 +399,7 @@
   font-family: var(--font-heading);
   font-size: 1.2rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
 
 .modal-body {

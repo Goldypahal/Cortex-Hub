@@ -39,11 +39,15 @@ function getClient() {
 }
 
 function quotaSubject(req) {
-  return req.user ? { token: sha256(`user:${req.user.id}`), limit: DAILY_RUNS_SIGNED_IN } : { token: sha256(`ip:${req.ip}`), limit: DAILY_RUNS_VISITOR };
+  return req.user
+    ? { token: sha256(`user:${req.user.id}`), limit: DAILY_RUNS_SIGNED_IN }
+    : { token: sha256(`ip:${req.ip}`), limit: DAILY_RUNS_VISITOR };
 }
 
 async function runsToday(token) {
-  return prisma.sandboxRun.count({ where: { sessionToken: token, createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+  return prisma.sandboxRun.count({
+    where: { sessionToken: token, createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
+  });
 }
 
 const runSchema = z
@@ -65,17 +69,38 @@ function documentBlock(body) {
   if (body.scenarioId) {
     const sample = SAMPLE_DOCUMENTS[body.scenarioId];
     if (!sample) return { error: "Unknown sample document" };
-    return { block: { type: "document", source: { type: "text", media_type: "text/plain", data: sample.text }, title: sample.title, citations: { enabled: true } } };
+    return {
+      block: {
+        type: "document",
+        source: { type: "text", media_type: "text/plain", data: sample.text },
+        title: sample.title,
+        citations: { enabled: true }
+      }
+    };
   }
   const doc = body.document;
   if (doc.mediaType === "application/pdf") {
     const bytes = Buffer.byteLength(doc.data, "base64");
     if (bytes > MAX_PDF_BYTES) return { error: "PDF is larger than 10 MB" };
     if (!/^[A-Za-z0-9+/]+=*$/.test(doc.data)) return { error: "PDF data must be base64" };
-    return { block: { type: "document", source: { type: "base64", media_type: "application/pdf", data: doc.data }, title: doc.name, citations: { enabled: true } } };
+    return {
+      block: {
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: doc.data },
+        title: doc.name,
+        citations: { enabled: true }
+      }
+    };
   }
   if (doc.data.length > MAX_TEXT_CHARS) return { error: "Text document is too long" };
-  return { block: { type: "document", source: { type: "text", media_type: "text/plain", data: doc.data }, title: doc.name, citations: { enabled: true } } };
+  return {
+    block: {
+      type: "document",
+      source: { type: "text", media_type: "text/plain", data: doc.data },
+      title: doc.name,
+      citations: { enabled: true }
+    }
+  };
 }
 
 function citationView(c) {
@@ -103,20 +128,32 @@ export function registerSandboxRoutes(app) {
       body = validate(runSchema, req.body, req, res);
       if (!body) return;
       const anthropic = getClient();
-      if (!anthropic) return res.status(503).json({ error: "The live sandbox is not configured on this server", requestId: req.requestId });
+      if (!anthropic)
+        return res
+          .status(503)
+          .json({ error: "The live sandbox is not configured on this server", requestId: req.requestId });
 
       product = await prisma.product.findUnique({ where: { slug: body.componentId } });
-      if (!product || product.status !== "PUBLISHED") return res.status(404).json({ error: "Product not found", requestId: req.requestId });
+      if (!product || product.status !== "PUBLISHED")
+        return res.status(404).json({ error: "Product not found", requestId: req.requestId });
 
       quota = quotaSubject(req);
       if ((await runsToday(quota.token)) >= quota.limit) {
-        return res.status(429).json({ error: `Daily sandbox limit of ${quota.limit} runs reached${req.user ? "" : ". Sign in for more runs"}`, requestId: req.requestId });
+        return res.status(429).json({
+          error: `Daily sandbox limit of ${quota.limit} runs reached${req.user ? "" : ". Sign in for more runs"}`,
+          requestId: req.requestId
+        });
       }
 
       const doc = documentBlock(body);
       if (doc.error) return res.status(400).json({ error: doc.error, requestId: req.requestId });
 
-      res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no"
+      });
       const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
       const started = Date.now();
@@ -142,7 +179,8 @@ export function registerSandboxRoutes(app) {
       let doneEvent = null;
       try {
         for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") send("text", { text: event.delta.text });
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta")
+            send("text", { text: event.delta.text });
         }
         const final = await stream.finalMessage();
         usage = final.usage;
@@ -151,7 +189,10 @@ export function registerSandboxRoutes(app) {
           status = "REFUSED";
           send("error", { error: "The model declined to answer this request." });
         } else {
-          const citations = final.content.filter((b) => b.type === "text").flatMap((b) => b.citations || []).map(citationView);
+          const citations = final.content
+            .filter((b) => b.type === "text")
+            .flatMap((b) => b.citations || [])
+            .map(citationView);
           const [inPrice, outPrice] = PRICES[final.model] || PRICES[MODEL] || [0, 0];
           const costUsd = (usage.input_tokens * inPrice + usage.output_tokens * outPrice) / 1e6;
           doneEvent = {
@@ -167,7 +208,10 @@ export function registerSandboxRoutes(app) {
         status = "FAILED";
         if (!res.writableEnded) {
           const busy = err instanceof Anthropic.RateLimitError || err instanceof Anthropic.InternalServerError;
-          send("error", { error: busy ? "The model is busy. Try again in a moment." : "The sandbox run failed.", requestId: req.requestId });
+          send("error", {
+            error: busy ? "The model is busy. Try again in a moment." : "The sandbox run failed.",
+            requestId: req.requestId
+          });
         }
         if (!(err instanceof Anthropic.APIUserAbortError)) console.error(`[sandbox] ${req.requestId}:`, err.message);
       }

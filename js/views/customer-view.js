@@ -3,7 +3,13 @@
  * Live workspace data when signed in to a buyer workspace; labelled sample data otherwise.
  */
 
-import { MOCK_TENANT, MOCK_LICENSES, MOCK_API_KEYS, MOCK_DAILY_USAGE, MOCK_SUPPORT_TICKETS } from "../data/mock-dashboard.js";
+import {
+  MOCK_TENANT,
+  MOCK_LICENSES,
+  MOCK_API_KEYS,
+  MOCK_DAILY_USAGE,
+  MOCK_SUPPORT_TICKETS
+} from "../data/mock-dashboard.js";
 import { getIconSvg, copyToClipboard, showToast, escapeHtml } from "../utils/helpers.js";
 
 const esc = escapeHtml;
@@ -11,7 +17,9 @@ const esc = escapeHtml;
 function fmtDate(value) {
   if (!value) return "—";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return Number.isNaN(d.getTime())
+    ? String(value)
+    : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function initials(name) {
@@ -48,7 +56,14 @@ function sampleData() {
       orderId: null,
       sellerName: null
     })),
-    apiKeys: MOCK_API_KEYS.map((k) => ({ id: k.id, name: k.name, environment: k.environment, prefix: k.masked, status: k.status || "Active", lastUsed: k.lastUsed })),
+    apiKeys: MOCK_API_KEYS.map((k) => ({
+      id: k.id,
+      name: k.name,
+      environment: k.environment,
+      prefix: k.masked,
+      status: k.status || "Active",
+      lastUsed: k.lastUsed
+    })),
     usage: MOCK_DAILY_USAGE.map((u) => ({ label: u.day, units: u.tokens })),
     tickets: MOCK_SUPPORT_TICKETS.map((t) => ({ ...t, created: t.created })),
     requests: null // filled from app.getCustomizationRequests()
@@ -89,7 +104,10 @@ function liveData(portal) {
       status: k.status,
       lastUsed: k.lastUsed ? fmtDate(k.lastUsed) : "Never"
     })),
-    usage: usage.map((u) => ({ label: new Date(u.date).toLocaleDateString("en-IN", { weekday: "short" }), units: u.units })),
+    usage: usage.map((u) => ({
+      label: new Date(u.date).toLocaleDateString("en-IN", { weekday: "short" }),
+      units: u.units
+    })),
     tickets: tickets.map((t) => ({ ...t, created: fmtDate(t.createdAt) })),
     requests
   };
@@ -179,7 +197,10 @@ export class CustomerView {
             ["requests", "CUSTOMIZATIONS"],
             ["tickets", "SUPPORT TICKETS"]
           ]
-            .map(([id, label]) => `<button class="tab-btn ${this.activeTab === id ? "active" : ""}" data-tab="${id}">${label}</button>`)
+            .map(
+              ([id, label]) =>
+                `<button class="tab-btn ${this.activeTab === id ? "active" : ""}" data-tab="${id}">${label}</button>`
+            )
             .join("")}
         </div>
 
@@ -256,7 +277,9 @@ export class CustomerView {
         </div>
       `;
 
-      tabBody.querySelector("#btn-browse-more-store").addEventListener("click", () => this.app.navigateTo("marketplace"));
+      tabBody
+        .querySelector("#btn-browse-more-store")
+        .addEventListener("click", () => this.app.navigateTo("marketplace"));
       tabBody.querySelectorAll(".btn-invoice").forEach((btn) => {
         btn.addEventListener("click", () => {
           if (!this.requireLive("download invoices")) return;
@@ -332,7 +355,11 @@ export class CustomerView {
           if (!confirm("Rotate this key? The current key is revoked immediately and a new one is issued.")) return;
           try {
             const res = await this.app.api.rotateApiKeyLive(btn.dataset.id);
-            this.showSecretModal("Rotated API key", res.key, "Update your services with this key now. It will not be shown again.");
+            this.showSecretModal(
+              "Rotated API key",
+              res.key,
+              "Update your services with this key now. It will not be shown again."
+            );
             await this.refresh();
           } catch (err) {
             showToast(err.message, "error");
@@ -413,7 +440,12 @@ export class CustomerView {
                 ${steps
                   .map((label, i) => {
                     const n = i + 1;
-                    const cls = req.statusStep > n || (n === 5 && req.statusStep >= 5) ? "done" : req.statusStep === n ? "active" : "";
+                    const cls =
+                      req.statusStep > n || (n === 5 && req.statusStep >= 5)
+                        ? "done"
+                        : req.statusStep === n
+                          ? "active"
+                          : "";
                     return `<div class="pipeline-step ${cls}"><div class="pipeline-dot">${cls === "done" ? "✓" : n}</div><span class="pipeline-label">${label}</span></div>`;
                   })
                   .join("")}
@@ -426,7 +458,9 @@ export class CustomerView {
             .join("")}
         </div>
       `;
-      tabBody.querySelector("#btn-request-new-customization").addEventListener("click", () => this.app.navigateTo("configurator"));
+      tabBody
+        .querySelector("#btn-request-new-customization")
+        .addEventListener("click", () => this.app.navigateTo("configurator"));
     } else if (this.activeTab === "tickets") {
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
@@ -489,7 +523,9 @@ export class CustomerView {
   }
 
   updateActiveTabUI(container) {
-    container.querySelectorAll(".tab-btn").forEach((t) => t.classList.toggle("active", t.dataset.tab === this.activeTab));
+    container
+      .querySelectorAll(".tab-btn")
+      .forEach((t) => t.classList.toggle("active", t.dataset.tab === this.activeTab));
     this.renderTabContent(container);
   }
 
@@ -503,7 +539,9 @@ export class CustomerView {
     }
     modal.innerHTML = html;
     modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
+    modal
+      .querySelectorAll(".modal-close-btn")
+      .forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
     return modal;
   }
 
@@ -525,7 +563,9 @@ export class CustomerView {
         </div>
       </div>`
     );
-    modal.querySelector("#btn-copy-secret").addEventListener("click", () => copyToClipboard(secret, "Copied to clipboard"));
+    modal
+      .querySelector("#btn-copy-secret")
+      .addEventListener("click", () => copyToClipboard(secret, "Copied to clipboard"));
   }
 
   showNewKeyModal() {
@@ -608,7 +648,11 @@ export class CustomerView {
       const subject = modal.querySelector("#tck-subject").value.trim();
       if (!subject) return showToast("Add a subject.", "warning");
       try {
-        await this.app.api.createTicketLive(subject, modal.querySelector("#tck-priority").value, modal.querySelector("#tck-desc").value.trim() || subject);
+        await this.app.api.createTicketLive(
+          subject,
+          modal.querySelector("#tck-priority").value,
+          modal.querySelector("#tck-desc").value.trim() || subject
+        );
         modal.classList.remove("active");
         showToast("Ticket submitted.", "success");
         this.activeTab = "tickets";

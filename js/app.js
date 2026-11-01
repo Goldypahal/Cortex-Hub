@@ -224,7 +224,7 @@ class Application {
     const activeContainer = document.getElementById(`view-${route}`);
     if (activeContainer) {
       activeContainer.classList.add("active");
-      
+
       // If passing componentId to playground or configurator
       if (params.componentId) {
         if (route === "configurator" && this.views.configurator) {
@@ -279,7 +279,9 @@ class Application {
     }
     modal.innerHTML = `<div class="modal-dialog" style="max-width: 560px;">${html}</div>`;
     modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
+    modal
+      .querySelectorAll(".modal-close-btn")
+      .forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
     return modal;
   }
 
@@ -306,14 +308,20 @@ class Application {
     try {
       [prices, config] = await Promise.all([this.api.getProductPrices(item.componentId), this.api.getCheckoutConfig()]);
     } catch (err) {
-      this.checkoutModal(`${header("Checkout unavailable")}<div class="modal-body"><p>${escapeHtml(err.message)}</p></div>`);
+      this.checkoutModal(
+        `${header("Checkout unavailable")}<div class="modal-body"><p>${escapeHtml(err.message)}</p></div>`
+      );
       return;
     }
     const buyable = prices.prices.filter((p) => p.model !== "CUSTOM");
     if (config.provider === "unavailable" || buyable.length === 0) {
-      this.checkoutModal(`${header("Checkout unavailable")}<div class="modal-body"><p style="color: var(--text-secondary);">${
-        buyable.length === 0 ? "This product is quoted on request. Use the configurator to request a quote." : "Payments are not configured on this server yet."
-      }</p></div>`);
+      this.checkoutModal(
+        `${header("Checkout unavailable")}<div class="modal-body"><p style="color: var(--text-secondary);">${
+          buyable.length === 0
+            ? "This product is quoted on request. Use the configurator to request a quote."
+            : "Payments are not configured on this server yet."
+        }</p></div>`
+      );
       return;
     }
 
@@ -405,12 +413,17 @@ class Application {
         try {
           this.showCheckoutResult(await this.api.confirmCheckout(order.orderId, response), item);
         } catch (err) {
-          showToast(`Payment received but confirmation failed: ${err.message}. Your licence will appear once the payment webhook arrives.`, "error");
+          showToast(
+            `Payment received but confirmation failed: ${err.message}. Your licence will appear once the payment webhook arrives.`,
+            "error"
+          );
         }
       },
       modal: { ondismiss: () => showToast("Payment cancelled.", "info") }
     });
-    rzp.on("payment.failed", (resp) => showToast(`Payment failed: ${resp.error?.description || "unknown error"}`, "error"));
+    rzp.on("payment.failed", (resp) =>
+      showToast(`Payment failed: ${resp.error?.description || "unknown error"}`, "error")
+    );
     rzp.open();
   }
 
@@ -429,7 +442,9 @@ class Application {
           keys.length
             ? keys
                 .map(
-                  (k) => `<div style="background: var(--bg-deep); border: 1px solid var(--border-subtle); padding: 12px; margin-bottom: 12px; text-align: left;">
+                  (
+                    k
+                  ) => `<div style="background: var(--bg-deep); border: 1px solid var(--border-subtle); padding: 12px; margin-bottom: 12px; text-align: left;">
             <span style="font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase;">Licence key (shown once, store it now)</span>
             <code style="display: block; font-family: var(--font-mono); font-size: 0.95rem; margin-top: 4px; word-break: break-all;">${escapeHtml(k.licenseKey)}</code>
           </div>`
@@ -445,8 +460,17 @@ class Application {
       </div>`);
 
     const copyBtn = modal.querySelector("#btn-copy-licence");
-    if (copyBtn) copyBtn.addEventListener("click", () => navigator.clipboard.writeText(keys.map((k) => k.licenseKey).join("\n")).then(() => showToast("Copied", "success")));
-    modal.querySelector("#btn-dl-invoice-checkout").addEventListener("click", () => window.open(`/api/invoices/${encodeURIComponent(result.orderId)}`, "_blank", "noopener"));
+    if (copyBtn)
+      copyBtn.addEventListener("click", () =>
+        navigator.clipboard
+          .writeText(keys.map((k) => k.licenseKey).join("\n"))
+          .then(() => showToast("Copied", "success"))
+      );
+    modal
+      .querySelector("#btn-dl-invoice-checkout")
+      .addEventListener("click", () =>
+        window.open(`/api/invoices/${encodeURIComponent(result.orderId)}`, "_blank", "noopener")
+      );
     modal.querySelector("#btn-go-to-portal").addEventListener("click", () => {
       modal.classList.remove("active");
       this.views.customer.activeTab = "overview";

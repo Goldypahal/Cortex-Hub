@@ -142,7 +142,9 @@ export class PlaygroundView {
 
   promptPills() {
     if (this.upload) return "";
-    return this.activeScenario.sampleQuestions.map((q) => `<button type="button" class="prompt-pill" data-prompt="${esc(q)}">// ${esc(q)}</button>`).join("");
+    return this.activeScenario.sampleQuestions
+      .map((q) => `<button type="button" class="prompt-pill" data-prompt="${esc(q)}">// ${esc(q)}</button>`)
+      .join("");
   }
 
   attachEvents(container) {
@@ -239,7 +241,8 @@ export class PlaygroundView {
   }
 
   renderCitations(citations) {
-    if (!citations.length) return `<div style="margin-top: 10px; font-size: 0.78rem; color: var(--text-muted);">No citations returned for this answer.</div>`;
+    if (!citations.length)
+      return `<div style="margin-top: 10px; font-size: 0.78rem; color: var(--text-muted);">No citations returned for this answer.</div>`;
     return `
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-medium);">
         <div style="font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--accent-lime); margin-bottom: 6px;">// CITATIONS (${citations.length})</div>
@@ -256,8 +259,10 @@ export class PlaygroundView {
 
   setTelemetry(container, { latencyMs, inputTokens, outputTokens, costUsd, model }) {
     container.querySelector("#telem-latency").textContent = latencyMs != null ? `${latencyMs} ms` : "—";
-    container.querySelector("#telem-prompt").textContent = inputTokens != null ? `${inputTokens.toLocaleString()} tok` : "—";
-    container.querySelector("#telem-completion").textContent = outputTokens != null ? `${outputTokens.toLocaleString()} tok` : "—";
+    container.querySelector("#telem-prompt").textContent =
+      inputTokens != null ? `${inputTokens.toLocaleString()} tok` : "—";
+    container.querySelector("#telem-completion").textContent =
+      outputTokens != null ? `${outputTokens.toLocaleString()} tok` : "—";
     container.querySelector("#telem-cost").textContent = costUsd != null ? `$${costUsd}` : "—";
     if (model) container.querySelector("#telem-model").textContent = model;
   }
@@ -281,7 +286,11 @@ export class PlaygroundView {
 
     this.isStreaming = true;
     sendBtn.disabled = true;
-    const box = this.addBubble(feed, "assistant", `<span style="color: var(--text-muted);">Reading the document…</span>`);
+    const box = this.addBubble(
+      feed,
+      "assistant",
+      `<span style="color: var(--text-muted);">Reading the document…</span>`
+    );
     const answer = document.createElement("div");
     answer.style.whiteSpace = "pre-wrap";
     let started = false;
@@ -307,7 +316,10 @@ export class PlaygroundView {
           if (this.status) this.status.usedToday += 1;
         },
         onError: (message) => {
-          box.insertAdjacentHTML("beforeend", `<div style="color: var(--status-error); margin-top: 8px;">${esc(message)}</div>`);
+          box.insertAdjacentHTML(
+            "beforeend",
+            `<div style="color: var(--status-error); margin-top: 8px;">${esc(message)}</div>`
+          );
           if (!started) box.querySelector("span")?.remove();
         }
       });

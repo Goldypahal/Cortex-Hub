@@ -25,7 +25,7 @@
   font-size: 2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #FFF;
+  color: #fff;
 }
 
 .playground-title-area p {
@@ -92,12 +92,19 @@
   padding: var(--space-5);
   text-align: center;
   background-color: var(--bg-surface-1);
-  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 10px, transparent 10px, transparent 20px);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.02) 10px,
+    transparent 10px,
+    transparent 20px
+  );
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.dropzone:hover, .dropzone.dragover {
+.dropzone:hover,
+.dropzone.dragover {
   border-color: var(--accent-lime);
   background-color: var(--bg-surface-2);
 }
@@ -261,7 +268,7 @@
 .chat-bubble.user .chat-content {
   background: var(--bg-surface-3);
   border-color: var(--border-medium);
-  color: #FFF;
+  color: #fff;
 }
 
 /* Grounded Source Citations */

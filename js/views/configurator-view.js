@@ -143,12 +143,36 @@ export class ConfiguratorView {
         
         <div class="options-grid">
           ${[
-            { id: "Healthcare", title: "Healthcare & Life Sciences", desc: "HIPAA compliance, medical terminology, dosage titration heuristics." },
-            { id: "Legal", title: "Legal & Compliance", desc: "Statutory citations, clause contradiction analysis, strict redline deltas." },
-            { id: "Finance", title: "Finance & Audit", desc: "SOX/GLBA security, balance sheet tables, zero tolerance audit trails." },
-            { id: "EdTech", title: "EdTech & Universities", desc: "Bloom's taxonomy grading, LMS QTI export, pedagogical tone." },
-            { id: "E-Commerce", title: "Retail & E-Commerce", desc: "Catalog recs, inventory checks, multi-lingual customer chat." },
-            { id: "Custom", title: "Sovereign Enterprise", desc: "General enterprise models tuned to bespoke operational protocols." }
+            {
+              id: "Healthcare",
+              title: "Healthcare & Life Sciences",
+              desc: "HIPAA compliance, medical terminology, dosage titration heuristics."
+            },
+            {
+              id: "Legal",
+              title: "Legal & Compliance",
+              desc: "Statutory citations, clause contradiction analysis, strict redline deltas."
+            },
+            {
+              id: "Finance",
+              title: "Finance & Audit",
+              desc: "SOX/GLBA security, balance sheet tables, zero tolerance audit trails."
+            },
+            {
+              id: "EdTech",
+              title: "EdTech & Universities",
+              desc: "Bloom's taxonomy grading, LMS QTI export, pedagogical tone."
+            },
+            {
+              id: "E-Commerce",
+              title: "Retail & E-Commerce",
+              desc: "Catalog recs, inventory checks, multi-lingual customer chat."
+            },
+            {
+              id: "Custom",
+              title: "Sovereign Enterprise",
+              desc: "General enterprise models tuned to bespoke operational protocols."
+            }
           ]
             .map(
               (item) => `
@@ -226,10 +250,30 @@ export class ConfiguratorView {
         
         <div class="options-grid">
           ${[
-            { id: "api_key", title: "API Key Authentication", desc: "Hashed SHA-256 tokens with rate-limiting response headers.", cost: "INCLUDED" },
-            { id: "sso_saml", title: "Enterprise SAML 2.0 / Okta", desc: "Zero-trust SSO federation with Azure AD, Okta, and Ping.", cost: "+ $450" },
-            { id: "oauth", title: "OAuth 2.0 PKCE", desc: "Workforce login via Google Workspace or Microsoft 365.", cost: "+ $250" },
-            { id: "rbac", title: "Row-Level RBAC Partitioning", desc: "Permissions mapped directly to vector search payload filters.", cost: "+ $300" }
+            {
+              id: "api_key",
+              title: "API Key Authentication",
+              desc: "Hashed SHA-256 tokens with rate-limiting response headers.",
+              cost: "INCLUDED"
+            },
+            {
+              id: "sso_saml",
+              title: "Enterprise SAML 2.0 / Okta",
+              desc: "Zero-trust SSO federation with Azure AD, Okta, and Ping.",
+              cost: "+ $450"
+            },
+            {
+              id: "oauth",
+              title: "OAuth 2.0 PKCE",
+              desc: "Workforce login via Google Workspace or Microsoft 365.",
+              cost: "+ $250"
+            },
+            {
+              id: "rbac",
+              title: "Row-Level RBAC Partitioning",
+              desc: "Permissions mapped directly to vector search payload filters.",
+              cost: "+ $300"
+            }
           ]
             .map(
               (auth) => `
@@ -262,9 +306,24 @@ export class ConfiguratorView {
         
         <div class="options-grid">
           ${[
-            { id: "cloud", title: "Multi-Tenant Managed Cloud", desc: "Fully managed, SOC2 Type II, logical row-level isolation.", cost: "INCLUDED" },
-            { id: "vpc", title: "Dedicated Private VPC", desc: "Provisioned to your AWS or GCP VPC with VPC peering & static IPs.", cost: "+ $600" },
-            { id: "onprem", title: "Air-Gapped Sovereign On-Prem", desc: "Self-hosted containerized Helm chart package with zero telemetry egress.", cost: "+ $1,200" }
+            {
+              id: "cloud",
+              title: "Multi-Tenant Managed Cloud",
+              desc: "Fully managed, SOC2 Type II, logical row-level isolation.",
+              cost: "INCLUDED"
+            },
+            {
+              id: "vpc",
+              title: "Dedicated Private VPC",
+              desc: "Provisioned to your AWS or GCP VPC with VPC peering & static IPs.",
+              cost: "+ $600"
+            },
+            {
+              id: "onprem",
+              title: "Air-Gapped Sovereign On-Prem",
+              desc: "Self-hosted containerized Helm chart package with zero telemetry egress.",
+              cost: "+ $1,200"
+            }
           ]
             .map(
               (dep) => `
@@ -405,11 +464,36 @@ export class ConfiguratorView {
         
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
           ${[
-            { id: "citations", title: "Strict Page Citations Engine", desc: "Bounding box paragraph attribution linked to source documents.", cost: "+ $150" },
-            { id: "guardrails", title: "Hallucination Guardrails & PII Masking", desc: "Pre-inference prompt validation and automated PII redaction layer.", cost: "+ $250" },
-            { id: "analytics", title: "Audit Telemetry & Token Cost Logs", desc: "Per-request latency, token consumption, and tenant quota tracking.", cost: "+ $180" },
-            { id: "multilingual", title: "40+ Language Automatic Localization", desc: "Cross-lingual semantic intent preservation and auto-translation.", cost: "+ $200" },
-            { id: "humanHandover", title: "Human Escalation Webhook Bridge", desc: "Automated ticket creation in Zendesk, Freshdesk, and Slack.", cost: "+ $150" }
+            {
+              id: "citations",
+              title: "Strict Page Citations Engine",
+              desc: "Bounding box paragraph attribution linked to source documents.",
+              cost: "+ $150"
+            },
+            {
+              id: "guardrails",
+              title: "Hallucination Guardrails & PII Masking",
+              desc: "Pre-inference prompt validation and automated PII redaction layer.",
+              cost: "+ $250"
+            },
+            {
+              id: "analytics",
+              title: "Audit Telemetry & Token Cost Logs",
+              desc: "Per-request latency, token consumption, and tenant quota tracking.",
+              cost: "+ $180"
+            },
+            {
+              id: "multilingual",
+              title: "40+ Language Automatic Localization",
+              desc: "Cross-lingual semantic intent preservation and auto-translation.",
+              cost: "+ $200"
+            },
+            {
+              id: "humanHandover",
+              title: "Human Escalation Webhook Bridge",
+              desc: "Automated ticket creation in Zendesk, Freshdesk, and Slack.",
+              cost: "+ $150"
+            }
           ]
             .map(
               (feat) => `
@@ -555,20 +639,20 @@ export class ConfiguratorView {
     let saved;
     try {
       saved = await this.app.addCustomizationRequest({
-      id: localId,
-      tenantName: "Sample workspace",
-      componentId: this.config.baseComponentId,
-      componentName: component ? component.name : this.config.baseComponentId,
-      scope: `${this.config.industry} + ${this.config.connectors.join(", ") || "Standard"} + ${this.config.auth.toUpperCase()}`,
-      industry: this.config.industry,
-      deploymentTarget: this.config.deployment.toUpperCase(),
-      estimatedPrice: `$${est.minTotalUsd.toLocaleString()}`,
-      priceInr: `₹${(est.minTotalUsd * 83.5).toLocaleString()}`,
-      targetDelivery: est.deliveryTimeline,
-      status: "Submitted",
-      statusStep: 1,
-      submittedDate: new Date().toISOString().split("T")[0],
-      timelineLog: [{ date: "Just now", event: "Created via configurator (sample mode, not saved)." }]
+        id: localId,
+        tenantName: "Sample workspace",
+        componentId: this.config.baseComponentId,
+        componentName: component ? component.name : this.config.baseComponentId,
+        scope: `${this.config.industry} + ${this.config.connectors.join(", ") || "Standard"} + ${this.config.auth.toUpperCase()}`,
+        industry: this.config.industry,
+        deploymentTarget: this.config.deployment.toUpperCase(),
+        estimatedPrice: `$${est.minTotalUsd.toLocaleString()}`,
+        priceInr: `₹${(est.minTotalUsd * 83.5).toLocaleString()}`,
+        targetDelivery: est.deliveryTimeline,
+        status: "Submitted",
+        statusStep: 1,
+        submittedDate: new Date().toISOString().split("T")[0],
+        timelineLog: [{ date: "Just now", event: "Created via configurator (sample mode, not saved)." }]
       });
     } catch (err) {
       showToast(`Could not submit: ${err.message}`, "error");

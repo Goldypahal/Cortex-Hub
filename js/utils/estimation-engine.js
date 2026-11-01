@@ -48,14 +48,22 @@ export function calculateCustomizationEstimate(config) {
     estimatedDays += 3;
   } else if (deployment === "onprem") {
     modifierSum += 1200;
-    breakdown.push({ item: "Air-Gapped On-Premise Install", cost: "+$1,200", details: "Docker Compose / Helm chart package" });
+    breakdown.push({
+      item: "Air-Gapped On-Premise Install",
+      cost: "+$1,200",
+      details: "Docker Compose / Helm chart package"
+    });
     estimatedDays += 5;
   }
 
   // 4. White-Label Branding Modifier
   if (config.whiteLabel) {
     modifierSum += 250;
-    breakdown.push({ item: "Custom White-Label Styling", cost: "+$250", details: "Custom domain, widget CSS & branded avatar" });
+    breakdown.push({
+      item: "Custom White-Label Styling",
+      cost: "+$250",
+      details: "Custom domain, widget CSS & branded avatar"
+    });
     estimatedDays += 1;
   }
 
@@ -67,7 +75,11 @@ export function calculateCustomizationEstimate(config) {
   }
   if (features.guardrails) {
     modifierSum += 250;
-    breakdown.push({ item: "Hallucination Guardrails", cost: "+$250", details: "Confidence thresholding & PII filter" });
+    breakdown.push({
+      item: "Hallucination Guardrails",
+      cost: "+$250",
+      details: "Confidence thresholding & PII filter"
+    });
     estimatedDays += 1;
   }
   if (features.analytics) {
@@ -81,7 +93,11 @@ export function calculateCustomizationEstimate(config) {
   }
   if (features.humanHandover) {
     modifierSum += 150;
-    breakdown.push({ item: "Human-in-the-Loop Handover", cost: "+$150", details: "Escalation to Zendesk/Intercom/Slack" });
+    breakdown.push({
+      item: "Human-in-the-Loop Handover",
+      cost: "+$150",
+      details: "Escalation to Zendesk/Intercom/Slack"
+    });
   }
 
   const minTotalUsd = basePrice + modifierSum;

@@ -18,9 +18,20 @@ export function registerBuyerRoutes(app) {
       monthStart.setHours(0, 0, 0, 0);
       const tenant = await tenantForWorkspace(ws);
       const [entitlements, spend, usage, openRequests] = await Promise.all([
-        prisma.entitlement.aggregate({ where: { workspaceId: ws.id, status: "ACTIVE" }, _count: true, _sum: { apiQuota: true, apiUsed: true } }),
-        prisma.order.aggregate({ where: { workspaceId: ws.id, status: "PAID", createdAt: { gte: monthStart } }, _sum: { totalAmountMinor: true } }),
-        prisma.usageEvent.aggregate({ where: { workspaceId: ws.id, recordedAt: { gte: monthStart } }, _sum: { units: true }, _count: true }),
+        prisma.entitlement.aggregate({
+          where: { workspaceId: ws.id, status: "ACTIVE" },
+          _count: true,
+          _sum: { apiQuota: true, apiUsed: true }
+        }),
+        prisma.order.aggregate({
+          where: { workspaceId: ws.id, status: "PAID", createdAt: { gte: monthStart } },
+          _sum: { totalAmountMinor: true }
+        }),
+        prisma.usageEvent.aggregate({
+          where: { workspaceId: ws.id, recordedAt: { gte: monthStart } },
+          _sum: { units: true },
+          _count: true
+        }),
         prisma.legacyCustomizationRequest.count({ where: { tenantId: tenant.id, status: { not: "Delivered" } } })
       ]);
       res.json({
@@ -78,13 +89,24 @@ export function registerBuyerRoutes(app) {
     ah(async (req, res) => {
       const body = validate(z.object({ text: z.string().trim().min(1).max(5000) }), req.body, req, res);
       if (!body) return;
-      const ticket = await prisma.legacySupportTicket.findUnique({ where: { id: req.params.id }, include: { tenant: true } });
+      const ticket = await prisma.legacySupportTicket.findUnique({
+        where: { id: req.params.id },
+        include: { tenant: true }
+      });
       const isStaff = isPlatformRole(req.user, PLATFORM_STAFF_ROLES);
-      const isOwner = ticket && req.user.memberships.some((m) => m.workspace.type === "BUYER" && m.workspace.slug === ticket.tenant.slug);
-      if (!ticket || !(isStaff || isOwner)) return res.status(404).json({ error: "Ticket not found", requestId: req.requestId });
+      const isOwner =
+        ticket &&
+        req.user.memberships.some((m) => m.workspace.type === "BUYER" && m.workspace.slug === ticket.tenant.slug);
+      if (!ticket || !(isStaff || isOwner))
+        return res.status(404).json({ error: "Ticket not found", requestId: req.requestId });
 
       const messages = Array.isArray(ticket.messages) ? [...ticket.messages] : [];
-      messages.push({ sender: isStaff ? "Support" : "Customer", author: req.user.name, time: new Date().toISOString(), text: body.text });
+      messages.push({
+        sender: isStaff ? "Support" : "Customer",
+        author: req.user.name,
+        time: new Date().toISOString(),
+        text: body.text
+      });
       const updated = await prisma.legacySupportTicket.update({
         where: { id: ticket.id },
         data: { messages, lastActivity: new Date().toISOString(), status: isStaff ? ticket.status : "OPEN" }
@@ -100,7 +122,9 @@ export function registerBuyerRoutes(app) {
     requireWorkspace("BUYER"),
     ah(async (req, res) => {
       const tenant = await tenantForWorkspace(req.workspace);
-      const old = await prisma.legacyApiKey.findFirst({ where: { id: req.params.id, tenantId: tenant.id, status: "ACTIVE" } });
+      const old = await prisma.legacyApiKey.findFirst({
+        where: { id: req.params.id, tenantId: tenant.id, status: "ACTIVE" }
+      });
       if (!old) return res.status(404).json({ error: "API key not found", requestId: req.requestId });
 
       const envPrefix = old.environment === "Staging" ? "test" : "live";
@@ -121,7 +145,11 @@ export function registerBuyerRoutes(app) {
           }
         });
       });
-      await audit(req, "apikey.rotated", { workspaceId: req.workspace.id, resourceId: created.id, before: { id: old.id } });
+      await audit(req, "apikey.rotated", {
+        workspaceId: req.workspace.id,
+        resourceId: created.id,
+        before: { id: old.id }
+      });
       const { keyHash: _omit, ...publicKey } = created;
       res.status(201).json({ ...publicKey, key: fullKey, keyShownOnce: true });
     })

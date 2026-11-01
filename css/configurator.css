@@ -20,7 +20,7 @@
   font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #FFF;
+  color: #fff;
   margin-top: 4px;
 }
 
@@ -149,7 +149,7 @@
   font-family: var(--font-heading);
   font-weight: 700;
   font-size: 0.95rem;
-  color: #FFF;
+  color: #fff;
 }
 
 .option-desc {
@@ -197,7 +197,7 @@
 }
 
 .color-swatch.active {
-  border-color: #FFF;
+  border-color: #fff;
   transform: scale(1.15);
   box-shadow: 0 0 8px currentColor;
 }

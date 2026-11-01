@@ -47,7 +47,7 @@
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
 
 .tenant-meta {
@@ -124,7 +124,7 @@
   font-family: var(--font-heading);
   font-size: 1.15rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
 
 /* API Key Code Block */
@@ -220,7 +220,7 @@
 }
 
 .pipeline-stepper::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 10px;
   left: 20px;

@@ -61,7 +61,7 @@
   font-family: var(--font-heading);
   font-size: 1.5rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
   margin: 0;
 }
 
@@ -145,7 +145,7 @@
 }
 
 .seller-tab-btn:hover {
-  color: #FFF;
+  color: #fff;
 }
 
 .seller-tab-btn.active {
@@ -244,7 +244,7 @@
   justify-content: center;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: #FFF;
+  color: #fff;
 }
 
 .wizard-step-node.active .step-circle {
@@ -264,7 +264,7 @@
   font-family: var(--font-heading);
   font-size: 0.8rem;
   font-weight: 600;
-  color: #FFF;
+  color: #fff;
 }
 
 .wizard-card {
@@ -284,7 +284,7 @@
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
 
 .wizard-step-desc {
@@ -336,7 +336,7 @@
 }
 
 .type-pill-btn:hover {
-  color: #FFF;
+  color: #fff;
   border-color: var(--border-medium);
 }
 
@@ -361,7 +361,7 @@
 }
 
 .btn-compare-toggle:hover {
-  color: #FFF;
+  color: #fff;
   border-color: var(--border-medium);
 }
 
@@ -476,7 +476,7 @@
   font-family: var(--font-heading);
   font-size: 0.95rem;
   font-weight: 700;
-  color: #FFF;
+  color: #fff;
   margin-top: 4px;
 }
 

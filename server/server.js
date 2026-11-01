@@ -45,13 +45,11 @@ import {
   verifyPassword
 } from "./auth.js";
 
-
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export const app = express();
 export { prisma };
 const PORT = process.env.PORT || 5000;
-
 
 // G3 FIX: Restrict CORS to allow-list only. Never use open cors() in production.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5000,http://localhost:3000")
@@ -148,7 +146,12 @@ const loginSchema = z.object({
 });
 
 function slugify(text) {
-  const base = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "workspace";
+  const base =
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "workspace";
   return `${base}-${randomBytes(3).toString("hex")}`;
 }
 
@@ -195,7 +198,9 @@ app.post(
 
     const throttleKey = `${req.ip}|${body.email}`;
     if (isLoginThrottled(throttleKey)) {
-      return res.status(429).json({ error: "Too many failed attempts. Try again in 15 minutes.", requestId: req.requestId });
+      return res
+        .status(429)
+        .json({ error: "Too many failed attempts. Try again in 15 minutes.", requestId: req.requestId });
     }
 
     const user = await prisma.user.findUnique({
@@ -304,7 +309,11 @@ app.get(
     // Approved seller products that have no curated catalog entry yet
     const sellerProducts = await prisma.product.findMany({
       where: { status: "PUBLISHED", slug: { notIn: components.map((c) => c.id) } },
-      include: { seller: true, prices: { where: { isActive: true }, orderBy: { amountMinor: "asc" } }, versions: { where: { isLatest: true }, take: 1 } },
+      include: {
+        seller: true,
+        prices: { where: { isActive: true }, orderBy: { amountMinor: "asc" } },
+        versions: { where: { isLatest: true }, take: 1 }
+      },
       orderBy: { createdAt: "desc" }
     });
     res.json([...components, ...sellerProducts.map(productAsCatalogEntry)]);
@@ -427,7 +436,9 @@ app.post(
         targetDelivery: body.targetDelivery || "14 Business Days",
         status: "Submitted",
         statusStep: 1,
-        timelineLog: [{ date: new Date().toISOString().split("T")[0], event: "Architecture request submitted via configurator." }]
+        timelineLog: [
+          { date: new Date().toISOString().split("T")[0], event: "Architecture request submitted via configurator." }
+        ]
       }
     });
     await audit(req, "customization.created", { workspaceId: req.workspace.id, resourceId: created.id });
@@ -651,67 +662,79 @@ app.get(
 // --------------------------------------------------------------------------
 // Twilio Communications & WhatsApp Assistant (SRS §2.3, ADM-06)
 // --------------------------------------------------------------------------
-app.get("/api/twilio/status", requirePlatformRole(...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
-  const status = await getTwilioStatus();
-  res.json(status);
-}));
+app.get(
+  "/api/twilio/status",
+  requirePlatformRole(...PLATFORM_ADMIN_ROLES),
+  ah(async (req, res) => {
+    const status = await getTwilioStatus();
+    res.json(status);
+  })
+);
 
-app.post("/api/notifications/whatsapp", requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
-  const body = validate(
-    z.object({
-      to: z.string().min(8),
-      message: z.string().min(1).max(1600),
-      channel: z.enum(["whatsapp", "sms"]).default("whatsapp")
-    }),
-    req.body,
-    req,
-    res
-  );
-  if (!body) return;
+app.post(
+  "/api/notifications/whatsapp",
+  requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES),
+  ah(async (req, res) => {
+    const body = validate(
+      z.object({
+        to: z.string().min(8),
+        message: z.string().min(1).max(1600),
+        channel: z.enum(["whatsapp", "sms"]).default("whatsapp")
+      }),
+      req.body,
+      req,
+      res
+    );
+    if (!body) return;
 
-  try {
-    const result = await sendTwilioMessage({
-      to: body.to,
-      body: body.message,
-      isWhatsApp: body.channel === "whatsapp"
-    });
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(400).json({
-      success: false,
-      error: err.message,
-      requestId: req.requestId
-    });
-  }
-}));
+    try {
+      const result = await sendTwilioMessage({
+        to: body.to,
+        body: body.message,
+        isWhatsApp: body.channel === "whatsapp"
+      });
+      res.json({ success: true, result });
+    } catch (err) {
+      res.status(400).json({
+        success: false,
+        error: err.message,
+        requestId: req.requestId
+      });
+    }
+  })
+);
 
-app.post("/api/notifications/sms", requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
-  const body = validate(
-    z.object({
-      to: z.string().min(8),
-      message: z.string().min(1).max(1600)
-    }),
-    req.body,
-    req,
-    res
-  );
-  if (!body) return;
+app.post(
+  "/api/notifications/sms",
+  requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES),
+  ah(async (req, res) => {
+    const body = validate(
+      z.object({
+        to: z.string().min(8),
+        message: z.string().min(1).max(1600)
+      }),
+      req.body,
+      req,
+      res
+    );
+    if (!body) return;
 
-  try {
-    const result = await sendTwilioMessage({
-      to: body.to,
-      body: body.message,
-      isWhatsApp: false
-    });
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(400).json({
-      success: false,
-      error: err.message,
-      requestId: req.requestId
-    });
-  }
-}));
+    try {
+      const result = await sendTwilioMessage({
+        to: body.to,
+        body: body.message,
+        isWhatsApp: false
+      });
+      res.json({ success: true, result });
+    } catch (err) {
+      res.status(400).json({
+        success: false,
+        error: err.message,
+        requestId: req.requestId
+      });
+    }
+  })
+);
 
 // Unknown API routes
 app.use("/api", (req, res) => {

@@ -210,8 +210,16 @@ export const MOCK_SUPPORT_TICKETS = [
     status: "Open",
     created: "2026-09-14 10:24 AM",
     messages: [
-      { sender: "Customer (John Doe)", time: "Yesterday, 10:24 AM", text: "We are configuring VPC peering between our AWS us-east-1 cluster and your managed pgvector endpoint. We need your VPC CIDR block." },
-      { sender: "Support Engineer (Sarah)", time: "Yesterday, 11:15 AM", text: "Hello John, our AWS us-east-1 CIDR block is 10.142.0.0/16. I've sent the peering connection request from our side (pcx-08a9f41)." }
+      {
+        sender: "Customer (John Doe)",
+        time: "Yesterday, 10:24 AM",
+        text: "We are configuring VPC peering between our AWS us-east-1 cluster and your managed pgvector endpoint. We need your VPC CIDR block."
+      },
+      {
+        sender: "Support Engineer (Sarah)",
+        time: "Yesterday, 11:15 AM",
+        text: "Hello John, our AWS us-east-1 CIDR block is 10.142.0.0/16. I've sent the peering connection request from our side (pcx-08a9f41)."
+      }
     ]
   },
   {
@@ -222,8 +230,16 @@ export const MOCK_SUPPORT_TICKETS = [
     status: "Resolved",
     created: "2026-09-08 03:10 PM",
     messages: [
-      { sender: "Customer (John Doe)", time: "Sep 08, 03:10 PM", text: "How do we rotate production keys without dropping queries in-flight?" },
-      { sender: "Support Engineer (Mike)", time: "Sep 08, 03:45 PM", text: "When you click 'Rotate' in the API Keys panel, the old key remains valid for a 5-minute rollover period." }
+      {
+        sender: "Customer (John Doe)",
+        time: "Sep 08, 03:10 PM",
+        text: "How do we rotate production keys without dropping queries in-flight?"
+      },
+      {
+        sender: "Support Engineer (Mike)",
+        time: "Sep 08, 03:45 PM",
+        text: "When you click 'Rotate' in the API Keys panel, the old key remains valid for a 5-minute rollover period."
+      }
     ]
   }
 ];
@@ -242,10 +258,10 @@ export const MOCK_SELLER = {
   github: "github.com/apex-ai-labs",
   grossRevenueUsd: 42850,
   platformFeeRate: 0.15, // Configurable 15% platform take rate
-  platformFeesPaid: 6427.50,
-  netEarningsUsd: 36422.50,
-  availableBalance: 8240.00,
-  pendingBalance: 3150.00,
+  platformFeesPaid: 6427.5,
+  netEarningsUsd: 36422.5,
+  availableBalance: 8240.0,
+  pendingBalance: 3150.0,
   totalSalesCount: 86,
   averageRating: 4.94,
   funnelMetrics: {
@@ -298,9 +314,30 @@ export const MOCK_SELLER = {
     }
   ],
   payoutHistory: [
-    { id: "PAY-9041", date: "Sep 15, 2026", amount: "$4,500.00", method: "Stripe Connect / ACH", status: "COMPLETED", txHash: "tx_98fbc102e3" },
-    { id: "PAY-8812", date: "Aug 15, 2026", amount: "$6,200.00", method: "Stripe Connect / ACH", status: "COMPLETED", txHash: "tx_772ae891f0" },
-    { id: "PAY-8409", date: "Jul 15, 2026", amount: "$5,100.00", method: "Stripe Connect / ACH", status: "COMPLETED", txHash: "tx_554df990b4" }
+    {
+      id: "PAY-9041",
+      date: "Sep 15, 2026",
+      amount: "$4,500.00",
+      method: "Stripe Connect / ACH",
+      status: "COMPLETED",
+      txHash: "tx_98fbc102e3"
+    },
+    {
+      id: "PAY-8812",
+      date: "Aug 15, 2026",
+      amount: "$6,200.00",
+      method: "Stripe Connect / ACH",
+      status: "COMPLETED",
+      txHash: "tx_772ae891f0"
+    },
+    {
+      id: "PAY-8409",
+      date: "Jul 15, 2026",
+      amount: "$5,100.00",
+      method: "Stripe Connect / ACH",
+      status: "COMPLETED",
+      txHash: "tx_554df990b4"
+    }
   ]
 };
 
@@ -325,7 +362,8 @@ export const MOCK_MODERATION_QUEUE = [
       documentation: "PASS (Verified Quickstart, schema spec & cURL test)",
       sandboxIntegrity: "PASS (Docker container builds in 38s, health check: 200 OK)"
     },
-    specs: "Dockerized Model Context Protocol server exposing Kubernetes cluster telemetry & Helm deploy capabilities to LLM agents."
+    specs:
+      "Dockerized Model Context Protocol server exposing Kubernetes cluster telemetry & Helm deploy capabilities to LLM agents."
   },
   {
     id: "MOD-302",

@@ -43,7 +43,10 @@ test("protected routes reject anonymous callers", async () => {
 });
 
 test("login rejects a wrong password without revealing details", async () => {
-  const res = await client()("POST", "/api/auth/login", { email: "buyer@acme-health.test", password: "wrong-password" });
+  const res = await client()("POST", "/api/auth/login", {
+    email: "buyer@acme-health.test",
+    password: "wrong-password"
+  });
   assert.equal(res.status, 401);
   assert.equal(res.body.error, "Invalid email or password");
 });
@@ -72,7 +75,6 @@ test("buyer can use their own portal but not staff routes", async () => {
   const keys = await buyer("GET", "/api/api-keys");
   assert.ok(keys.body.every((k) => k.keyHash === undefined));
 
-
   assert.equal((await buyer("POST", "/api/tickets", { subject: "Test ticket", message: "hi" })).status, 201);
   assert.equal((await buyer("POST", "/api/customization-requests", { componentId: "rag-chatbot" })).status, 201);
 
@@ -81,12 +83,19 @@ test("buyer can use their own portal but not staff routes", async () => {
   assert.equal((await buyer("GET", "/api/admin/moderation")).status, 403);
   assert.equal((await buyer("GET", "/api/admin/revenue")).status, 403);
   assert.equal((await buyer("POST", "/api/seller/products", { name: "x" })).status, 403);
-  assert.equal((await buyer("POST", "/api/notifications/whatsapp", { to: "+910000000000", message: "hi" })).status, 403);
+  assert.equal(
+    (await buyer("POST", "/api/notifications/whatsapp", { to: "+910000000000", message: "hi" })).status,
+    403
+  );
 });
 
 test("seller can submit products but not use buyer routes", async () => {
   const seller = await signedIn("seller@apex-ai.test");
-  const sub = await seller("POST", "/api/seller/products", { name: "Test MCP Server", shortDesc: "An MCP server used in tests", basePriceInr: 999 });
+  const sub = await seller("POST", "/api/seller/products", {
+    name: "Test MCP Server",
+    shortDesc: "An MCP server used in tests",
+    basePriceInr: 999
+  });
   assert.equal(sub.status, 201);
   assert.equal(sub.body.product.status, "UNDER_REVIEW");
   assert.equal((await seller("GET", "/api/entitlements")).status, 403);

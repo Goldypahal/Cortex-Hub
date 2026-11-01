@@ -75,8 +75,15 @@ export function registerAdminRoutes(app) {
           moderations: { create: { action: body.action, reason, moderatorId: req.user.id } }
         }
       });
-      await audit(req, `moderation.${body.action.toLowerCase()}`, { resourceId: product.id, before: { status: product.status }, after: { status: updated.status } });
-      res.json({ success: true, item: { id: updated.slug, status: approve ? "APPROVED" : "REJECTED", resolutionReason: reason } });
+      await audit(req, `moderation.${body.action.toLowerCase()}`, {
+        resourceId: product.id,
+        before: { status: product.status },
+        after: { status: updated.status }
+      });
+      res.json({
+        success: true,
+        item: { id: updated.slug, status: approve ? "APPROVED" : "REJECTED", resolutionReason: reason }
+      });
     })
   );
 
@@ -95,14 +102,29 @@ export function registerAdminRoutes(app) {
           _sum: { totalAmountMinor: true, taxAmountMinor: true, platformFeeMinor: true, sellerNetMinor: true },
           _count: true
         }),
-        prisma.order.aggregate({ where: { status: "PAID", createdAt: { gte: monthStart } }, _sum: { totalAmountMinor: true, taxAmountMinor: true } }),
+        prisma.order.aggregate({
+          where: { status: "PAID", createdAt: { gte: monthStart } },
+          _sum: { totalAmountMinor: true, taxAmountMinor: true }
+        }),
         prisma.payout.aggregate({ where: { status: "PAID" }, _sum: { amountMinor: true } }),
-        prisma.payout.aggregate({ where: { status: { in: ["PENDING", "PROCESSING"] } }, _sum: { amountMinor: true }, _count: true }),
+        prisma.payout.aggregate({
+          where: { status: { in: ["PENDING", "PROCESSING"] } },
+          _sum: { amountMinor: true },
+          _count: true
+        }),
         prisma.workspace.count({ where: { type: "SELLER", products: { some: { status: "PUBLISHED" } } } }),
-        prisma.orderItem.groupBy({ by: ["productId"], where: { order: { status: "PAID" } }, _sum: { amountMinor: true }, _count: true })
+        prisma.orderItem.groupBy({
+          by: ["productId"],
+          where: { order: { status: "PAID" } },
+          _sum: { amountMinor: true },
+          _count: true
+        })
       ]);
 
-      const products = await prisma.product.findMany({ where: { id: { in: byProduct.map((b) => b.productId) } }, select: { id: true, name: true } });
+      const products = await prisma.product.findMany({
+        where: { id: { in: byProduct.map((b) => b.productId) } },
+        select: { id: true, name: true }
+      });
       const gmvNet = (all._sum.totalAmountMinor || 0) - (all._sum.taxAmountMinor || 0);
       res.json({
         currency: "INR",
@@ -118,15 +140,23 @@ export function registerAdminRoutes(app) {
         payoutsPendingCount: payoutsPending._count,
         activeSellers: sellers,
         byProduct: byProduct
-          .map((b) => ({ product: products.find((p) => p.id === b.productId)?.name || b.productId, orders: b._count, revenueMinor: b._sum.amountMinor || 0 }))
+          .map((b) => ({
+            product: products.find((p) => p.id === b.productId)?.name || b.productId,
+            orders: b._count,
+            revenueMinor: b._sum.amountMinor || 0
+          }))
           .sort((a, b) => b.revenueMinor - a.revenueMinor)
       });
     })
   );
 
-  app.get("/api/admin/settings/commission", requirePlatformRole(...FINANCE), ah(async (req, res) => {
-    res.json({ commissionRate: await getCommissionRate() });
-  }));
+  app.get(
+    "/api/admin/settings/commission",
+    requirePlatformRole(...FINANCE),
+    ah(async (req, res) => {
+      res.json({ commissionRate: await getCommissionRate() });
+    })
+  );
 
   app.put(
     "/api/admin/settings/commission",
@@ -153,15 +183,40 @@ export function registerAdminRoutes(app) {
       const body = validate(z.object({ amountInr: z.number().int().min(1).max(10000000) }), req.body, req, res);
       if (!body) return;
       const product = await prisma.product.findUnique({ where: { slug: req.params.slug } });
-      const price = product && (await prisma.price.findFirst({ where: { productId: product.id, name: req.params.tier, currency: "INR" } }));
-      if (!price || price.model === "CUSTOM") return res.status(404).json({ error: "Price tier not found", requestId: req.requestId });
-      const updated = await prisma.price.update({ where: { id: price.id }, data: { amountMinor: body.amountInr * 100 } });
-      if (price.name === (await prisma.price.findFirst({ where: { productId: product.id, currency: "INR" }, orderBy: { createdAt: "asc" } }))?.name) {
+      const price =
+        product &&
+        (await prisma.price.findFirst({ where: { productId: product.id, name: req.params.tier, currency: "INR" } }));
+      if (!price || price.model === "CUSTOM")
+        return res.status(404).json({ error: "Price tier not found", requestId: req.requestId });
+      const updated = await prisma.price.update({
+        where: { id: price.id },
+        data: { amountMinor: body.amountInr * 100 }
+      });
+      if (
+        price.name ===
+        (
+          await prisma.price.findFirst({
+            where: { productId: product.id, currency: "INR" },
+            orderBy: { createdAt: "asc" }
+          })
+        )?.name
+      ) {
         // Keep the catalog card's display price in step with the first tier
-        await prisma.component.updateMany({ where: { id: product.slug }, data: { inrPriceFormatted: formatMoney(updated.amountMinor, "INR").replace(/\.00$/, "") } });
+        await prisma.component.updateMany({
+          where: { id: product.slug },
+          data: { inrPriceFormatted: formatMoney(updated.amountMinor, "INR").replace(/\.00$/, "") }
+        });
       }
-      await audit(req, "price.updated", { resourceId: price.id, before: { amountMinor: price.amountMinor }, after: { amountMinor: updated.amountMinor } });
-      res.json({ tier: updated.name, amountMinor: updated.amountMinor, formatted: formatMoney(updated.amountMinor, "INR") });
+      await audit(req, "price.updated", {
+        resourceId: price.id,
+        before: { amountMinor: price.amountMinor },
+        after: { amountMinor: updated.amountMinor }
+      });
+      res.json({
+        tier: updated.name,
+        amountMinor: updated.amountMinor,
+        formatted: formatMoney(updated.amountMinor, "INR")
+      });
     })
   );
 
@@ -170,8 +225,21 @@ export function registerAdminRoutes(app) {
     "/api/admin/payouts",
     requirePlatformRole(...FINANCE),
     ah(async (req, res) => {
-      const payouts = await prisma.payout.findMany({ include: { workspace: true }, orderBy: { createdAt: "desc" }, take: 100 });
-      res.json(payouts.map((p) => ({ id: p.id, seller: p.workspace.name, amountMinor: p.amountMinor, method: p.method, status: p.status, date: p.createdAt })));
+      const payouts = await prisma.payout.findMany({
+        include: { workspace: true },
+        orderBy: { createdAt: "desc" },
+        take: 100
+      });
+      res.json(
+        payouts.map((p) => ({
+          id: p.id,
+          seller: p.workspace.name,
+          amountMinor: p.amountMinor,
+          method: p.method,
+          status: p.status,
+          date: p.createdAt
+        }))
+      );
     })
   );
 
@@ -179,7 +247,12 @@ export function registerAdminRoutes(app) {
     "/api/admin/payouts/:id",
     requirePlatformRole(...FINANCE),
     ah(async (req, res) => {
-      const body = validate(z.object({ status: z.enum(["PROCESSING", "PAID", "FAILED"]), reference: z.string().max(120).optional() }), req.body, req, res);
+      const body = validate(
+        z.object({ status: z.enum(["PROCESSING", "PAID", "FAILED"]), reference: z.string().max(120).optional() }),
+        req.body,
+        req,
+        res
+      );
       if (!body) return;
       const payout = await prisma.payout.findUnique({ where: { id: req.params.id } });
       if (!payout || ["PAID", "FAILED"].includes(payout.status)) {
@@ -189,15 +262,31 @@ export function registerAdminRoutes(app) {
         if (body.status === "FAILED") {
           // Return the money to the seller's balance
           await tx.walletLedger.create({
-            data: { workspaceId: payout.workspaceId, type: "ADJUSTMENT", amountMinor: payout.amountMinor, currency: payout.currency, reference: payout.id, note: "Payout failed: reversed" }
+            data: {
+              workspaceId: payout.workspaceId,
+              type: "ADJUSTMENT",
+              amountMinor: payout.amountMinor,
+              currency: payout.currency,
+              reference: payout.id,
+              note: "Payout failed: reversed"
+            }
           });
         }
         return tx.payout.update({
           where: { id: payout.id },
-          data: { status: body.status, providerPayoutId: body.reference, processedAt: body.status === "PAID" ? new Date() : null }
+          data: {
+            status: body.status,
+            providerPayoutId: body.reference,
+            processedAt: body.status === "PAID" ? new Date() : null
+          }
         });
       });
-      await audit(req, "payout.updated", { workspaceId: payout.workspaceId, resourceId: payout.id, before: { status: payout.status }, after: { status: updated.status } });
+      await audit(req, "payout.updated", {
+        workspaceId: payout.workspaceId,
+        resourceId: payout.id,
+        before: { status: payout.status },
+        after: { status: updated.status }
+      });
       res.json({ id: updated.id, status: updated.status });
     })
   );

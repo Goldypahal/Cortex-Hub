@@ -14,7 +14,7 @@ import {
   MOCK_LICENSES,
   MOCK_API_KEYS,
   MOCK_CUSTOMIZATION_REQUESTS,
-  MOCK_SUPPORT_TICKETS,
+  MOCK_SUPPORT_TICKETS
 } from "../../js/data/mock-dashboard.js";
 
 async function main() {
@@ -209,7 +209,10 @@ async function seedDemoAccounts() {
 }
 
 function slugify(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 async function seedMarketplace(workspaces) {
@@ -284,7 +287,10 @@ async function seedDemoOrders(workspaces) {
   }
 
   for (const lic of MOCK_LICENSES) {
-    const product = await prisma.product.findUnique({ where: { slug: lic.componentId }, include: { prices: { orderBy: { amountMinor: "asc" } } } });
+    const product = await prisma.product.findUnique({
+      where: { slug: lic.componentId },
+      include: { prices: { orderBy: { amountMinor: "asc" } } }
+    });
     const price = product?.prices.find((p) => p.model !== "CUSTOM");
     if (!price) continue;
     const tax = Math.round(price.amountMinor * 0.18);
@@ -300,7 +306,15 @@ async function seedDemoOrders(workspaces) {
         currency: "INR",
         status: "PENDING",
         paymentProvider: "seed",
-        items: { create: { productId: product.id, priceId: price.id, licenseTier: price.name, amountMinor: price.amountMinor, currency: "INR" } }
+        items: {
+          create: {
+            productId: product.id,
+            priceId: price.id,
+            licenseTier: price.name,
+            amountMinor: price.amountMinor,
+            currency: "INR"
+          }
+        }
       }
     });
     await fulfilOrder(order.id, { provider: "seed", providerPayId: `seed_${order.id.slice(0, 8)}` });

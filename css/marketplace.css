@@ -45,7 +45,7 @@
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.04em;
-  color: #FFFFFF;
+  color: #ffffff;
   margin-bottom: var(--space-4);
 }
 
@@ -91,7 +91,7 @@
   font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
-  color: #FFF;
+  color: #fff;
 }
 
 .hero-spec-lbl {
@@ -170,7 +170,7 @@
   padding: 10px 14px;
   font-family: var(--font-mono);
   font-size: 0.76rem;
-  color: #E2E8F0;
+  color: #e2e8f0;
   line-height: 1.5;
 }
 
@@ -282,7 +282,9 @@
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
-  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
   position: relative;
 }
 
@@ -294,7 +296,7 @@
 /* Wide Featured Card (Spans 8 columns on desktop) */
 .bento-card.featured-wide {
   grid-column: span 8;
-  background: linear-gradient(180deg, #131720 0%, #0D0F14 100%);
+  background: linear-gradient(180deg, #131720 0%, #0d0f14 100%);
   border-color: rgba(212, 255, 0, 0.4);
 }
 
@@ -321,7 +323,7 @@
   font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #FFF;
+  color: #fff;
   margin-bottom: var(--space-2);
 }
 
@@ -376,9 +378,8 @@
   font-family: var(--font-heading);
   font-size: 1.25rem;
   font-weight: 800;
-  color: #FFF;
+  color: #fff;
 }
-
 
 /* ==========================================================================
    SRS v3.0 DISC-04: View Mode Switcher (Buyer Mode vs Developer Mode)
@@ -453,7 +454,10 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  transition: transform var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast);
+  transition:
+    transform var(--duration-fast),
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
   box-shadow: var(--shadow-sm);
 }
 
@@ -516,7 +520,7 @@
 }
 
 .buyer-social-rating {
-  color: #F59E0B;
+  color: #f59e0b;
   font-weight: 700;
 }
 

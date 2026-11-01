@@ -38,7 +38,9 @@ export async function createRazorpayOrder({ amountMinor, currency, receipt, note
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(`Razorpay order creation failed (HTTP ${res.status}): ${data.error?.description || "unknown error"}`);
+    throw new Error(
+      `Razorpay order creation failed (HTTP ${res.status}): ${data.error?.description || "unknown error"}`
+    );
   }
   return data;
 }

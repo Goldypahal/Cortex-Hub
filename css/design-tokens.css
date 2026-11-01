@@ -22,56 +22,56 @@
   color-scheme: dark;
 
   /* Surfaces */
-  --bg: #0B0C0F;
+  --bg: #0b0c0f;
   --surface-1: #121318;
-  --surface-2: #181A20;
-  --surface-3: #1E2028;
+  --surface-2: #181a20;
+  --surface-3: #1e2028;
 
   /* Borders */
-  --border: #24262E;
-  --border-medium: rgba(255,255,255,0.10);
-  --border-strong: rgba(255,255,255,0.18);
-  --border-focus: #D4FF00;
+  --border: #24262e;
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-focus: #d4ff00;
 
   /* Text */
-  --text: #F4F5F7;
-  --text-muted: #9AA0AD;
-  --text-dim: #5E6370;
-  --text-inverse: #0B0C0F;
+  --text: #f4f5f7;
+  --text-muted: #9aa0ad;
+  --text-dim: #5e6370;
+  --text-inverse: #0b0c0f;
 
   /* Accent - lime: used ONLY on primary CTA, live dot, focus ring */
-  --accent: #D4FF00;
-  --accent-hover: #E2FE52;
-  --accent-fg: #0B0C0F;
-  --accent-dim: rgba(212,255,0,0.10);
+  --accent: #d4ff00;
+  --accent-hover: #e2fe52;
+  --accent-fg: #0b0c0f;
+  --accent-dim: rgba(212, 255, 0, 0.1);
 
   /* Status */
-  --info: #60A5FA;
-  --success: #4ADE80;
-  --warning: #FBBF24;
-  --danger: #F87171;
-  --info-dim: rgba(96,165,250,0.12);
-  --success-dim: rgba(74,222,128,0.12);
-  --warning-dim: rgba(251,191,36,0.12);
-  --danger-dim: rgba(248,113,113,0.12);
+  --info: #60a5fa;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info-dim: rgba(96, 165, 250, 0.12);
+  --success-dim: rgba(74, 222, 128, 0.12);
+  --warning-dim: rgba(251, 191, 36, 0.12);
+  --danger-dim: rgba(248, 113, 113, 0.12);
 
   /* Legacy compatibility aliases - do not remove until all views updated */
-  --bg-deep: #07080B;
+  --bg-deep: #07080b;
   --bg-primary: var(--bg);
   --bg-surface-1: var(--surface-1);
   --bg-surface-2: var(--surface-2);
   --bg-surface-3: var(--surface-3);
-  --bg-highlight: #282D3D;
+  --bg-highlight: #282d3d;
   --border-subtle: var(--border);
   --accent-lime: var(--accent);
   --accent-lime-hover: var(--accent-hover);
   --accent-lime-dim: var(--accent-dim);
-  --accent-lime-border: rgba(212,255,0,0.30);
+  --accent-lime-border: rgba(212, 255, 0, 0.3);
   --border-accent: var(--accent);
-  --signal-amber: #FB923C;
-  --signal-amber-dim: rgba(251,146,60,0.12);
-  --signal-cyan: #22D3EE;
-  --signal-cyan-dim: rgba(34,211,238,0.10);
+  --signal-amber: #fb923c;
+  --signal-amber-dim: rgba(251, 146, 60, 0.12);
+  --signal-cyan: #22d3ee;
+  --signal-cyan-dim: rgba(34, 211, 238, 0.1);
   --cyan: var(--signal-cyan);
   --status-live: var(--success);
   --status-live-dim: var(--success-dim);
@@ -90,51 +90,51 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #FAFAF9;
-  --surface-1: #FFFFFF;
-  --surface-2: #F3F3F1;
-  --surface-3: #EAEAE7;
+  --bg: #fafaf9;
+  --surface-1: #ffffff;
+  --surface-2: #f3f3f1;
+  --surface-3: #eaeae7;
 
-  --border: #E6E6E3;
-  --border-medium: rgba(0,0,0,0.10);
-  --border-strong: rgba(0,0,0,0.18);
-  --border-focus: #5C8200;
+  --border: #e6e6e3;
+  --border-medium: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --border-focus: #5c8200;
 
   --text: #111214;
-  --text-muted: #5E6370;
-  --text-dim: #9AA0AD;
-  --text-inverse: #FFFFFF;
+  --text-muted: #5e6370;
+  --text-dim: #9aa0ad;
+  --text-inverse: #ffffff;
 
-  --accent: #5C8200;
-  --accent-hover: #4A6B00;
-  --accent-fg: #FFFFFF;
-  --accent-dim: rgba(92,130,0,0.10);
+  --accent: #5c8200;
+  --accent-hover: #4a6b00;
+  --accent-fg: #ffffff;
+  --accent-dim: rgba(92, 130, 0, 0.1);
 
-  --info: #2563EB;
-  --success: #15803D;
-  --warning: #B45309;
-  --danger: #DC2626;
-  --info-dim: rgba(37,99,235,0.10);
-  --success-dim: rgba(21,128,61,0.10);
-  --warning-dim: rgba(180,83,9,0.10);
-  --danger-dim: rgba(220,38,38,0.10);
+  --info: #2563eb;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #dc2626;
+  --info-dim: rgba(37, 99, 235, 0.1);
+  --success-dim: rgba(21, 128, 61, 0.1);
+  --warning-dim: rgba(180, 83, 9, 0.1);
+  --danger-dim: rgba(220, 38, 38, 0.1);
 
   /* Legacy compat aliases for light */
-  --bg-deep: #F0F0EE;
+  --bg-deep: #f0f0ee;
   --bg-primary: var(--bg);
   --bg-surface-1: var(--surface-1);
   --bg-surface-2: var(--surface-2);
   --bg-surface-3: var(--surface-3);
-  --bg-highlight: #E8E8E5;
+  --bg-highlight: #e8e8e5;
   --border-subtle: var(--border);
   --accent-lime: var(--accent);
   --accent-lime-hover: var(--accent-hover);
   --accent-lime-dim: var(--accent-dim);
-  --accent-lime-border: rgba(92,130,0,0.30);
-  --signal-amber: #D97706;
-  --signal-amber-dim: rgba(217,119,6,0.10);
-  --signal-cyan: #0891B2;
-  --signal-cyan-dim: rgba(8,145,178,0.10);
+  --accent-lime-border: rgba(92, 130, 0, 0.3);
+  --signal-amber: #d97706;
+  --signal-amber-dim: rgba(217, 119, 6, 0.1);
+  --signal-cyan: #0891b2;
+  --signal-cyan-dim: rgba(8, 145, 178, 0.1);
   --cyan: var(--signal-cyan);
   --status-live: var(--success);
   --status-live-dim: var(--success-dim);
@@ -154,9 +154,9 @@
    Code: JetBrains Mono 13-14px
    -------------------------------------------------------------------------- */
 :root {
-  --font-heading: 'Bricolage Grotesque', -apple-system, sans-serif;
-  --font-sans: 'Inter', 'Geist Sans', -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-heading: "Bricolage Grotesque", -apple-system, sans-serif;
+  --font-sans: "Inter", "Geist Sans", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
   /* Type scale: 1.25 ratio, 16px base */
   --text-xs: 0.75rem;
@@ -193,10 +193,10 @@
      Elevation 0: flat with border
      Elevation 1: popover/card hover
      Elevation 2: modal/drawer */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-lg: 0 12px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
-  --shadow-xl: 0 24px 48px rgba(0,0,0,0.18), 0 8px 16px rgba(0,0,0,0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.18), 0 8px 16px rgba(0, 0, 0, 0.08);
   /* Legacy compat aliases */
   --shadow-tactile: var(--shadow-sm);
   --shadow-tactile-lg: var(--shadow-md);
@@ -228,7 +228,9 @@
 
 /* prefers-reduced-motion - SRS v3.0 S6.1 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

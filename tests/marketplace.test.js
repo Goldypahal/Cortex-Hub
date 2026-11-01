@@ -47,13 +47,23 @@ test("simulated checkout: order, GST, idempotency, licence key, invoice", async 
   assert.equal((await buyer("POST", "/api/checkout", { productSlug: "doc-analyzer", tier: custom.tier })).status, 400);
 
   const key = randomBytes(8).toString("hex");
-  const order = await buyer("POST", "/api/checkout", { productSlug: "doc-analyzer", tier: tier.tier }, { "Idempotency-Key": key });
+  const order = await buyer(
+    "POST",
+    "/api/checkout",
+    { productSlug: "doc-analyzer", tier: tier.tier },
+    { "Idempotency-Key": key }
+  );
   assert.equal(order.status, 201);
   assert.equal(order.body.provider, "simulated");
   assert.equal(order.body.taxMinor, Math.round(tier.amountMinor * 0.18));
   assert.equal(order.body.totalMinor, tier.amountMinor + order.body.taxMinor);
 
-  const replay = await buyer("POST", "/api/checkout", { productSlug: "doc-analyzer", tier: tier.tier }, { "Idempotency-Key": key });
+  const replay = await buyer(
+    "POST",
+    "/api/checkout",
+    { productSlug: "doc-analyzer", tier: tier.tier },
+    { "Idempotency-Key": key }
+  );
   assert.equal(replay.body.orderId, order.body.orderId);
   assert.equal(replay.body.replayed, true);
 
@@ -89,7 +99,10 @@ test("simulated checkout: order, GST, idempotency, licence key, invoice", async 
   // Seller wallet got the sale and the platform fee
   const ledger = await prisma.walletLedger.findMany({ where: { reference: order.body.orderId } });
   assert.deepEqual(ledger.map((l) => l.type).sort(), ["FEE", "SALE"]);
-  assert.equal(ledger.reduce((n, l) => n + l.amountMinor, 0), tier.amountMinor - Math.round(tier.amountMinor * 0.15));
+  assert.equal(
+    ledger.reduce((n, l) => n + l.amountMinor, 0),
+    tier.amountMinor - Math.round(tier.amountMinor * 0.15)
+  );
 
   // Rotating the licence key replaces the stored hash
   const rotated = await buyer("POST", `/api/entitlements/${ents.body[0].id}/rotate-key`, {});
@@ -105,7 +118,9 @@ test("razorpay checkout verifies the payment signature", async () => {
   stubFetch(async (url, init) => {
     if (url === "https://api.razorpay.com/v1/orders") {
       created = JSON.parse(init.body);
-      return new Response(JSON.stringify({ id: "order_rzp_1", amount: created.amount, currency: created.currency }), { status: 200 });
+      return new Response(JSON.stringify({ id: "order_rzp_1", amount: created.amount, currency: created.currency }), {
+        status: 200
+      });
     }
     return null;
   });
@@ -150,25 +165,39 @@ test("razorpay webhook fulfils only correctly signed, matching payments", async 
   process.env.RAZORPAY_WEBHOOK_SECRET = "whsec_test";
   const rzpId = `order_wh_${randomBytes(4).toString("hex")}`;
   stubFetch(async (url, init) =>
-    url === "https://api.razorpay.com/v1/orders" ? new Response(JSON.stringify({ id: rzpId, amount: JSON.parse(init.body).amount }), { status: 200 }) : null
+    url === "https://api.razorpay.com/v1/orders"
+      ? new Response(JSON.stringify({ id: rzpId, amount: JSON.parse(init.body).amount }), { status: 200 })
+      : null
   );
   try {
     const buyer = await registerBuyer();
     const order = await buyer("POST", "/api/checkout", { productSlug: "rag-chatbot", tier: "Starter" });
     const event = (amount) =>
-      JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: `pay_${rzpId}`, order_id: rzpId, amount, currency: "INR" } } } });
+      JSON.stringify({
+        event: "payment.captured",
+        payload: { payment: { entity: { id: `pay_${rzpId}`, order_id: rzpId, amount, currency: "INR" } } }
+      });
     const sign = (body) => createHmac("sha256", "whsec_test").update(body).digest("hex");
     const anon = client();
 
     const unsigned = event(order.body.totalMinor);
-    assert.equal((await anon("POST", "/api/webhooks/razorpay", unsigned, { "X-Razorpay-Signature": "bad" })).status, 400);
+    assert.equal(
+      (await anon("POST", "/api/webhooks/razorpay", unsigned, { "X-Razorpay-Signature": "bad" })).status,
+      400
+    );
 
     const wrongAmount = event(1);
-    assert.equal((await anon("POST", "/api/webhooks/razorpay", wrongAmount, { "X-Razorpay-Signature": sign(wrongAmount) })).status, 200);
+    assert.equal(
+      (await anon("POST", "/api/webhooks/razorpay", wrongAmount, { "X-Razorpay-Signature": sign(wrongAmount) })).status,
+      200
+    );
     assert.equal((await prisma.order.findUnique({ where: { id: order.body.orderId } })).status, "PENDING");
 
     const good = event(order.body.totalMinor);
-    assert.equal((await anon("POST", "/api/webhooks/razorpay", good, { "X-Razorpay-Signature": sign(good) })).status, 200);
+    assert.equal(
+      (await anon("POST", "/api/webhooks/razorpay", good, { "X-Razorpay-Signature": sign(good) })).status,
+      200
+    );
     assert.equal((await prisma.order.findUnique({ where: { id: order.body.orderId } })).status, "PAID");
     // Replayed webhook does not issue a second entitlement
     await anon("POST", "/api/webhooks/razorpay", good, { "X-Razorpay-Signature": sign(good) });
@@ -190,7 +219,11 @@ test("seller dashboard and payouts follow the ledger, hold and KYC rules", async
   assert.ok(dash.body.availableMinor > 0, "seeded sale past the hold");
 
   assert.equal((await seller("POST", "/api/seller/payouts", { amountMinor: 100 })).status, 400, "below minimum");
-  assert.equal((await seller("POST", "/api/seller/payouts", { amountMinor: dash.body.availableMinor + 100 })).status, 400, "above balance");
+  assert.equal(
+    (await seller("POST", "/api/seller/payouts", { amountMinor: dash.body.availableMinor + 100 })).status,
+    400,
+    "above balance"
+  );
   const payout = await seller("POST", "/api/seller/payouts", { amountMinor: 50000 });
   assert.equal(payout.status, 201);
   const after = await seller("GET", "/api/seller/dashboard");
@@ -216,7 +249,11 @@ test("seller dashboard and payouts follow the ledger, hold and KYC rules", async
 test("moderation approval publishes a seller product to the catalog and checkout", async () => {
   const seller = await signedIn("seller@apex-ai.test");
   const name = `Moderated Agent ${randomBytes(3).toString("hex")}`;
-  const sub = await seller("POST", "/api/seller/products", { name, shortDesc: "Agent submitted for moderation tests", basePriceInr: 1500 });
+  const sub = await seller("POST", "/api/seller/products", {
+    name,
+    shortDesc: "Agent submitted for moderation tests",
+    basePriceInr: 1500
+  });
   const slug = sub.body.product.id;
 
   assert.ok(!(await client()("GET", "/api/components")).body.some((c) => c.id === slug), "hidden while under review");
@@ -265,13 +302,57 @@ test("sandbox: disabled without a key, streams answers with citations when confi
   process.env.ANTHROPIC_API_KEY = "sk-ant-test";
   let sent;
   const sse = [
-    ["message_start", { type: "message_start", message: { id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 820, output_tokens: 1 } } }],
-    ["content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "", citations: [] } }],
-    ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "citations_delta", citation: { type: "char_location", cited_text: "The maximum dose is 40 mg daily.", document_index: 0, document_title: "Sample", start_char_index: 10, end_char_index: 42 } } }],
-    ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "The maximum dose " } }],
-    ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "is 40 mg daily." } }],
+    [
+      "message_start",
+      {
+        type: "message_start",
+        message: {
+          id: "msg_1",
+          type: "message",
+          role: "assistant",
+          model: "claude-opus-5-5",
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 820, output_tokens: 1 }
+        }
+      }
+    ],
+    [
+      "content_block_start",
+      { type: "content_block_start", index: 0, content_block: { type: "text", text: "", citations: [] } }
+    ],
+    [
+      "content_block_delta",
+      {
+        type: "content_block_delta",
+        index: 0,
+        delta: {
+          type: "citations_delta",
+          citation: {
+            type: "char_location",
+            cited_text: "The maximum dose is 40 mg daily.",
+            document_index: 0,
+            document_title: "Sample",
+            start_char_index: 10,
+            end_char_index: 42
+          }
+        }
+      }
+    ],
+    [
+      "content_block_delta",
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "The maximum dose " } }
+    ],
+    [
+      "content_block_delta",
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "is 40 mg daily." } }
+    ],
     ["content_block_stop", { type: "content_block_stop", index: 0 }],
-    ["message_delta", { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 14 } }],
+    [
+      "message_delta",
+      { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 14 } }
+    ],
     ["message_stop", { type: "message_stop" }]
   ]
     .map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`)
@@ -279,7 +360,10 @@ test("sandbox: disabled without a key, streams answers with citations when confi
   stubFetch(async (url, init) => {
     if (url.startsWith("https://api.anthropic.com/v1/messages")) {
       sent = { body: JSON.parse(init.body), headers: new Headers(init.headers) };
-      return new Response(sse, { status: 200, headers: { "content-type": "text/event-stream", "request-id": "req_test" } });
+      return new Response(sse, {
+        status: 200,
+        headers: { "content-type": "text/event-stream", "request-id": "req_test" }
+      });
     }
     return null;
   });
@@ -292,7 +376,13 @@ test("sandbox: disabled without a key, streams answers with citations when confi
       .trim()
       .split("\n\n")
       .map((chunk) => ({ event: /^event: (.*)$/m.exec(chunk)[1], data: JSON.parse(/^data: (.*)$/m.exec(chunk)[1]) }));
-    assert.equal(events.filter((e) => e.event === "text").map((e) => e.data.text).join(""), "The maximum dose is 40 mg daily.");
+    assert.equal(
+      events
+        .filter((e) => e.event === "text")
+        .map((e) => e.data.text)
+        .join(""),
+      "The maximum dose is 40 mg daily."
+    );
     const done = events.find((e) => e.event === "done").data;
     assert.equal(done.citations[0].citedText, "The maximum dose is 40 mg daily.");
     assert.equal(done.inputTokens, 820);
@@ -313,11 +403,30 @@ test("sandbox: disabled without a key, streams answers with citations when confi
     assert.ok(usage.body[0].units >= 834, "sandbox tokens recorded as usage");
 
     // Input validation and daily quota
-    assert.equal((await buyer("POST", "/api/sandbox/run", { ...body, document: { name: "a.txt", mediaType: "text/plain", data: "x" } })).status, 400);
-    assert.equal((await buyer("POST", "/api/sandbox/run", { componentId: "rag-chatbot", question: "Hi there", document: { name: "a.pdf", mediaType: "application/pdf", data: "not base64!" } })).status, 400);
+    assert.equal(
+      (
+        await buyer("POST", "/api/sandbox/run", {
+          ...body,
+          document: { name: "a.txt", mediaType: "text/plain", data: "x" }
+        })
+      ).status,
+      400
+    );
+    assert.equal(
+      (
+        await buyer("POST", "/api/sandbox/run", {
+          componentId: "rag-chatbot",
+          question: "Hi there",
+          document: { name: "a.pdf", mediaType: "application/pdf", data: "not base64!" }
+        })
+      ).status,
+      400
+    );
     const me = (await buyer("GET", "/api/auth/me")).body.user;
     const product = await prisma.product.findUnique({ where: { slug: "rag-chatbot" } });
-    await prisma.sandboxRun.createMany({ data: Array.from({ length: 100 }, () => ({ productId: product.id, sessionToken: sha256(`user:${me.id}`) })) });
+    await prisma.sandboxRun.createMany({
+      data: Array.from({ length: 100 }, () => ({ productId: product.id, sessionToken: sha256(`user:${me.id}`) }))
+    });
     assert.equal((await buyer("POST", "/api/sandbox/run", body)).status, 429);
     await prisma.sandboxRun.deleteMany({ where: { sessionToken: sha256(`user:${me.id}`), durationMs: null } });
   } finally {

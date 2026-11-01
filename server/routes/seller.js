@@ -12,8 +12,21 @@ const PAYOUT_HOLD_DAYS = 7; // SRS SELL-05: 7-day hold before funds become avail
 const MIN_PAYOUT_MINOR = Number(process.env.PAYOUT_MINIMUM_INR_PAISE || 50000); // ₹500
 
 const PRODUCT_TYPES = [
-  "APPLICATION", "AI_AGENT", "API", "RAG_SYSTEM", "MODEL", "LORA", "EMBEDDING_MODEL", "RERANKER",
-  "MCP_SERVER", "PYTHON_PACKAGE", "NPM_PACKAGE", "WORKFLOW", "DATASET", "CUSTOM_SERVICE", "PROMPT_PACK"
+  "APPLICATION",
+  "AI_AGENT",
+  "API",
+  "RAG_SYSTEM",
+  "MODEL",
+  "LORA",
+  "EMBEDDING_MODEL",
+  "RERANKER",
+  "MCP_SERVER",
+  "PYTHON_PACKAGE",
+  "NPM_PACKAGE",
+  "WORKFLOW",
+  "DATASET",
+  "CUSTOM_SERVICE",
+  "PROMPT_PACK"
 ];
 
 async function sellerProfileFor(workspace) {
@@ -27,13 +40,26 @@ async function sellerProfileFor(workspace) {
 async function walletSummary(workspaceId) {
   const holdCutoff = new Date(Date.now() - PAYOUT_HOLD_DAYS * 24 * 60 * 60 * 1000);
   const [byType, matured, recent] = await Promise.all([
-    prisma.walletLedger.groupBy({ by: ["type"], where: { workspaceId, currency: CURRENCY }, _sum: { amountMinor: true } }),
-    prisma.walletLedger.aggregate({
-      where: { workspaceId, currency: CURRENCY, OR: [{ createdAt: { lte: holdCutoff } }, { type: { in: ["PAYOUT", "ADJUSTMENT"] } }] },
+    prisma.walletLedger.groupBy({
+      by: ["type"],
+      where: { workspaceId, currency: CURRENCY },
       _sum: { amountMinor: true }
     }),
     prisma.walletLedger.aggregate({
-      where: { workspaceId, currency: CURRENCY, createdAt: { gt: holdCutoff }, type: { in: ["SALE", "FEE", "REFUND"] } },
+      where: {
+        workspaceId,
+        currency: CURRENCY,
+        OR: [{ createdAt: { lte: holdCutoff } }, { type: { in: ["PAYOUT", "ADJUSTMENT"] } }]
+      },
+      _sum: { amountMinor: true }
+    }),
+    prisma.walletLedger.aggregate({
+      where: {
+        workspaceId,
+        currency: CURRENCY,
+        createdAt: { gt: holdCutoff },
+        type: { in: ["SALE", "FEE", "REFUND"] }
+      },
       _sum: { amountMinor: true }
     })
   ]);
@@ -144,7 +170,11 @@ export function registerSellerRoutes(app) {
       if (!body) return;
 
       const profile = await sellerProfileFor(req.workspace);
-      const base = body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+      const base = body.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48);
       let slug = base || "product";
       for (let n = 2; await prisma.product.findUnique({ where: { slug } }); n++) slug = `${base}-${n}`;
 
@@ -168,7 +198,12 @@ export function registerSellerRoutes(app) {
           prices: {
             create: [
               { name: "Starter", model: "ONE_TIME", amountMinor: body.basePriceInr * 100, currency: CURRENCY },
-              { name: "Pro", model: "ONE_TIME", amountMinor: Math.round(body.basePriceInr * 2.5) * 100, currency: CURRENCY }
+              {
+                name: "Pro",
+                model: "ONE_TIME",
+                amountMinor: Math.round(body.basePriceInr * 2.5) * 100,
+                currency: CURRENCY
+              }
             ]
           },
           moderations: {
@@ -206,10 +241,15 @@ export function registerSellerRoutes(app) {
 
       const profile = await sellerProfileFor(req.workspace);
       if (!profile.kycPassed) {
-        return res.status(403).json({ error: "Complete identity and bank verification (KYC) before requesting payouts", requestId: req.requestId });
+        return res.status(403).json({
+          error: "Complete identity and bank verification (KYC) before requesting payouts",
+          requestId: req.requestId
+        });
       }
       if (body.amountMinor < MIN_PAYOUT_MINOR) {
-        return res.status(400).json({ error: `Minimum payout is ₹${MIN_PAYOUT_MINOR / 100}`, requestId: req.requestId });
+        return res
+          .status(400)
+          .json({ error: `Minimum payout is ₹${MIN_PAYOUT_MINOR / 100}`, requestId: req.requestId });
       }
 
       // Check the balance and debit it in one transaction so two requests cannot overdraw
@@ -218,17 +258,36 @@ export function registerSellerRoutes(app) {
         const wallet = await walletSummary(req.workspace.id);
         if (body.amountMinor > wallet.availableMinor) return null;
         const created = await tx.payout.create({
-          data: { workspaceId: req.workspace.id, amountMinor: body.amountMinor, currency: CURRENCY, method: body.method, status: "PENDING" }
+          data: {
+            workspaceId: req.workspace.id,
+            amountMinor: body.amountMinor,
+            currency: CURRENCY,
+            method: body.method,
+            status: "PENDING"
+          }
         });
         await tx.walletLedger.create({
-          data: { workspaceId: req.workspace.id, type: "PAYOUT", amountMinor: -body.amountMinor, currency: CURRENCY, reference: created.id, note: "Payout requested" }
+          data: {
+            workspaceId: req.workspace.id,
+            type: "PAYOUT",
+            amountMinor: -body.amountMinor,
+            currency: CURRENCY,
+            reference: created.id,
+            note: "Payout requested"
+          }
         });
         return created;
       });
       if (!payout) return res.status(400).json({ error: "Amount exceeds available balance", requestId: req.requestId });
 
       await audit(req, "payout.requested", { workspaceId: req.workspace.id, resourceId: payout.id });
-      res.status(201).json({ id: payout.id, amountMinor: payout.amountMinor, status: payout.status, method: payout.method, date: payout.createdAt });
+      res.status(201).json({
+        id: payout.id,
+        amountMinor: payout.amountMinor,
+        status: payout.status,
+        method: payout.method,
+        date: payout.createdAt
+      });
     })
   );
 }

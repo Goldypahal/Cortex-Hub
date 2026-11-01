@@ -192,9 +192,7 @@ export function requirePlatformRole(...roles) {
 export function findMembership(req, type) {
   if (!req.user) return null;
   const wanted = req.get("x-workspace-id");
-  return (
-    req.user.memberships.find((m) => m.workspace.type === type && (!wanted || m.workspaceId === wanted)) || null
-  );
+  return req.user.memberships.find((m) => m.workspace.type === type && (!wanted || m.workspaceId === wanted)) || null;
 }
 
 export function requireWorkspace(type) {

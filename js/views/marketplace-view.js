@@ -364,8 +364,11 @@ export class MarketplaceView {
       }
 
       const matchType = this.selectedProductType === "all" || c.productType === this.selectedProductType;
-      const matchInd = this.selectedIndustry === "all" || (c.tags && c.tags.includes(this.selectedIndustry)) || (c.goodFor && c.goodFor.includes(this.selectedIndustry));
-      
+      const matchInd =
+        this.selectedIndustry === "all" ||
+        (c.tags && c.tags.includes(this.selectedIndustry)) ||
+        (c.goodFor && c.goodFor.includes(this.selectedIndustry));
+
       const query = this.searchQuery;
       const matchSearch =
         !query ||
@@ -465,7 +468,8 @@ export class MarketplaceView {
       // ----------------------------------------------------------------------
       grid.innerHTML = filtered
         .map((c, index) => {
-          const isFeatured = index === 0 && this.selectedCategory === "all" && this.selectedProductType === "all" && !this.searchQuery;
+          const isFeatured =
+            index === 0 && this.selectedCategory === "all" && this.selectedProductType === "all" && !this.searchQuery;
           const isCompared = this.comparedComponentIds.has(c.id);
           const telemetry = c.measuredTelemetry || {};
 
@@ -1070,10 +1074,10 @@ export class MarketplaceView {
       slider.addEventListener("input", (e) => {
         const vol = parseInt(e.target.value);
         volumeDisplay.textContent = `${vol.toLocaleString()} requests/mo`;
-        
+
         // Scale calculation: base price covers 10,000 requests, extra is metered at $0.005/req
         const extraReqs = Math.max(0, vol - 10000);
-        const calculatedUsd = Math.round(basePriceNum + (extraReqs * 0.005));
+        const calculatedUsd = Math.round(basePriceNum + extraReqs * 0.005);
         const calculatedInr = Math.round(calculatedUsd * 83.5);
 
         priceUsdDisplay.textContent = `$${calculatedUsd.toLocaleString()} USD`;

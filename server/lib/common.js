@@ -62,7 +62,10 @@ export function shortId(prefix) {
 
 export function newLicenseKey(slug) {
   const hex = randomBytes(12).toString("hex").toUpperCase();
-  return `LIC-${slug.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4)}-${hex.substring(0, 6)}-${hex.substring(6, 12)}`;
+  return `LIC-${slug
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 4)}-${hex.substring(0, 6)}-${hex.substring(6, 12)}`;
 }
 
 // --------------------------------------------------------------------------

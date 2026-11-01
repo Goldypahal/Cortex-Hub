@@ -11,9 +11,7 @@ import { MOCK_CUSTOMIZATION_REQUESTS, MOCK_SELLER, MOCK_MODERATION_QUEUE } from 
 // G9 FIX: API base URL reads from environment config, never hardcoded.
 // Set window.CORTEX_API_URL via a server-rendered <script> tag or env injection.
 // Falls back to relative path '/api' so it works on any deployment.
-const API_BASE = (typeof window !== "undefined" && window.CORTEX_API_URL)
-  ? window.CORTEX_API_URL
-  : "/api";
+const API_BASE = typeof window !== "undefined" && window.CORTEX_API_URL ? window.CORTEX_API_URL : "/api";
 
 class ApiClient {
   constructor() {
@@ -37,7 +35,10 @@ class ApiClient {
   }
 
   isStaff() {
-    return Boolean(this.currentUser && ["ADMIN", "SUPERADMIN", "MODERATOR", "SUPPORT", "FINANCE"].includes(this.currentUser.globalRole));
+    return Boolean(
+      this.currentUser &&
+      ["ADMIN", "SUPERADMIN", "MODERATOR", "SUPPORT", "FINANCE"].includes(this.currentUser.globalRole)
+    );
   }
 
   async request(method, path, body, headers = {}) {
@@ -119,7 +120,9 @@ class ApiClient {
   }
 
   setProductPrice(slug, tier, amountInr) {
-    return this.request("PUT", `/admin/products/${encodeURIComponent(slug)}/prices/${encodeURIComponent(tier)}`, { amountInr });
+    return this.request("PUT", `/admin/products/${encodeURIComponent(slug)}/prices/${encodeURIComponent(tier)}`, {
+      amountInr
+    });
   }
 
   getAdminPayouts() {
@@ -247,7 +250,8 @@ class ApiClient {
     if (!this.hasWorkspace("SELLER")) return { ...this.memorySeller, currency: "USD", isSample: true };
     const d = await this.request("GET", "/seller/dashboard");
     const major = (minor) => minor / 100;
-    const money = (minor) => new Intl.NumberFormat("en-IN", { style: "currency", currency: d.currency }).format(minor / 100);
+    const money = (minor) =>
+      new Intl.NumberFormat("en-IN", { style: "currency", currency: d.currency }).format(minor / 100);
     const conv = d.funnel.productViews ? `${((d.funnel.purchases / d.funnel.productViews) * 100).toFixed(1)}%` : "—";
     return {
       isSample: false,
@@ -374,7 +378,12 @@ class ApiClient {
       ],
       architecture: [
         { step: "1", title: "Ingress", desc: "Validate input payload & schema", icon: "shield" },
-        { step: "2", title: "Inference Engine", desc: `${submissionData.framework || "PyTorch"} optimized execution`, icon: "cpu" },
+        {
+          step: "2",
+          title: "Inference Engine",
+          desc: `${submissionData.framework || "PyTorch"} optimized execution`,
+          icon: "cpu"
+        },
         { step: "3", title: "Audit Verification", desc: "Telemetry check & output verification", icon: "check-circle" }
       ],
       codeSnippets: {
@@ -439,12 +448,21 @@ print("Result:", output)`,
 
   async requestSellerPayout(amount, method) {
     if (this.hasWorkspace("SELLER")) {
-      const methodKey = /razorpay/i.test(method || "") ? "razorpay" : /stripe/i.test(method || "") ? "stripe_connect" : "bank_transfer";
-      return this.request("POST", "/seller/payouts", { amountMinor: Math.round(Number(amount) * 100), method: methodKey });
+      const methodKey = /razorpay/i.test(method || "")
+        ? "razorpay"
+        : /stripe/i.test(method || "")
+          ? "stripe_connect"
+          : "bank_transfer";
+      return this.request("POST", "/seller/payouts", {
+        amountMinor: Math.round(Number(amount) * 100),
+        method: methodKey
+      });
     }
     const amtNum = parseFloat(amount) || 1000;
     if (amtNum > this.memorySeller.availableBalance) {
-      throw new Error(`Requested amount ($${amtNum}) exceeds available balance ($${this.memorySeller.availableBalance})`);
+      throw new Error(
+        `Requested amount ($${amtNum}) exceeds available balance ($${this.memorySeller.availableBalance})`
+      );
     }
 
     this.memorySeller.availableBalance -= amtNum;
@@ -505,7 +523,11 @@ print("Result:", output)`,
     if (!mod) return null;
 
     mod.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
-    mod.resolutionReason = reason || (action === "APPROVE" ? "Passed technical specification and malware scan." : "Requires additional documentation.");
+    mod.resolutionReason =
+      reason ||
+      (action === "APPROVE"
+        ? "Passed technical specification and malware scan."
+        : "Requires additional documentation.");
 
     // If approved, publish to the active catalog!
     if (action === "APPROVE" && mod.productRef) {
@@ -552,7 +574,8 @@ print("Result:", output)`,
   }
 
   async updateCustomizationRequest(id, updatePayload) {
-    if (this.isStaff()) return this.request("PATCH", `/customization-requests/${encodeURIComponent(id)}`, updatePayload);
+    if (this.isStaff())
+      return this.request("PATCH", `/customization-requests/${encodeURIComponent(id)}`, updatePayload);
     const req = this.memoryRequests.find((r) => r.id === id);
     if (req) {
       if (updatePayload.status) req.status = updatePayload.status;
@@ -595,7 +618,6 @@ print("Result:", output)`,
       return { success: false, error: err.message };
     }
   }
-
 }
 
 export const apiClient = new ApiClient();

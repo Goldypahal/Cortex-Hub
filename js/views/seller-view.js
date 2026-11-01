@@ -37,7 +37,11 @@ export class SellerView {
   }
 
   money(amount, currency = "USD") {
-    return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount || 0);
+    return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
   }
 
   async render(container) {
@@ -55,7 +59,14 @@ export class SellerView {
       <section class="seller-studio-header">
         <div class="seller-header-left">
           <div class="seller-avatar-badge">
-            <span class="seller-monogram">${escapeHtml(seller.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase())}</span>
+            <span class="seller-monogram">${escapeHtml(
+              seller.displayName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()
+            )}</span>
             <span class="seller-verified-pip" title="Verified Tier-1 Seller">${getIconSvg("check", 12)}</span>
           </div>
           <div class="seller-meta">
@@ -652,7 +663,10 @@ print("Cluster Telemetry:", health.status)</textarea>
 
         try {
           const res = await this.app.api.submitSellerProduct(this.wizardData);
-          showToast(`"${res.product.name}" submitted for review${seller.isSample ? " (sample mode, not saved)" : ""}.`, "success");
+          showToast(
+            `"${res.product.name}" submitted for review${seller.isSample ? " (sample mode, not saved)" : ""}.`,
+            "success"
+          );
 
           // Reset wizard and show the portfolio with the new product
           this.submissionStep = 1;

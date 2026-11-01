@@ -80,15 +80,34 @@ export async function fulfilOrder(orderId, { provider, providerPayId }) {
       issuedKeys.push({ entitlementId: entitlement.id, productName: item.product.name, licenseKey });
 
       // Seller wallet (double entry): gross sale credit, platform fee debit
-      const fee = Math.round(item.amountMinor * (order.platformFeeMinor / Math.max(1, order.totalAmountMinor - order.taxAmountMinor)));
+      const fee = Math.round(
+        item.amountMinor * (order.platformFeeMinor / Math.max(1, order.totalAmountMinor - order.taxAmountMinor))
+      );
       await tx.walletLedger.createMany({
         data: [
-          { workspaceId: item.product.workspaceId, type: "SALE", amountMinor: item.amountMinor, currency: order.currency, reference: orderId, note: item.product.name },
-          { workspaceId: item.product.workspaceId, type: "FEE", amountMinor: -fee, currency: order.currency, reference: orderId, note: "Platform commission" }
+          {
+            workspaceId: item.product.workspaceId,
+            type: "SALE",
+            amountMinor: item.amountMinor,
+            currency: order.currency,
+            reference: orderId,
+            note: item.product.name
+          },
+          {
+            workspaceId: item.product.workspaceId,
+            type: "FEE",
+            amountMinor: -fee,
+            currency: order.currency,
+            reference: orderId,
+            note: "Platform commission"
+          }
         ]
       });
       await tx.product.update({ where: { id: item.productId }, data: { activeInstalls: { increment: 1 } } });
-      await tx.sellerProfile.update({ where: { id: item.product.sellerId }, data: { totalSalesCount: { increment: 1 } } });
+      await tx.sellerProfile.update({
+        where: { id: item.product.sellerId },
+        data: { totalSalesCount: { increment: 1 } }
+      });
     }
 
     const now = new Date();
@@ -210,7 +229,12 @@ export function registerCommerceRoutes(app) {
           if (existing.workspaceId !== req.workspace.id) {
             return res.status(409).json({ error: "Idempotency key already used", requestId: req.requestId });
           }
-          return res.json({ orderId: existing.id, status: existing.status, provider: existing.paymentProvider, replayed: true });
+          return res.json({
+            orderId: existing.id,
+            status: existing.status,
+            provider: existing.paymentProvider,
+            replayed: true
+          });
         }
       }
 
@@ -223,7 +247,10 @@ export function registerCommerceRoutes(app) {
       });
       if (!price) return res.status(404).json({ error: "Price tier not found", requestId: req.requestId });
       if (price.model === "CUSTOM") {
-        return res.status(400).json({ error: "This tier is quoted on request. Submit a customization request instead.", requestId: req.requestId });
+        return res.status(400).json({
+          error: "This tier is quoted on request. Submit a customization request instead.",
+          requestId: req.requestId
+        });
       }
 
       const useRazorpay = isRazorpayConfigured();
@@ -295,7 +322,9 @@ export function registerCommerceRoutes(app) {
         } catch (err) {
           console.error(`[checkout] ${req.requestId}:`, err.message);
           await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
-          return res.status(502).json({ error: "Could not start payment. Please try again.", requestId: req.requestId });
+          return res
+            .status(502)
+            .json({ error: "Could not start payment. Please try again.", requestId: req.requestId });
         }
       }
 
@@ -333,7 +362,8 @@ export function registerCommerceRoutes(app) {
         }
         providerPayId = body.razorpay_payment_id;
       } else if (order.paymentProvider === "simulated") {
-        if (IS_PRODUCTION) return res.status(400).json({ error: "Simulated payments are disabled", requestId: req.requestId });
+        if (IS_PRODUCTION)
+          return res.status(400).json({ error: "Simulated payments are disabled", requestId: req.requestId });
         providerPayId = `sim_${randomBytes(8).toString("hex")}`;
       } else {
         return res.status(400).json({ error: "Order cannot be confirmed", requestId: req.requestId });
@@ -341,7 +371,9 @@ export function registerCommerceRoutes(app) {
 
       const result = await fulfilOrder(order.id, { provider: order.paymentProvider, providerPayId });
       if (!result.order || (result.order.status !== "PAID" && !result.alreadyFulfilled)) {
-        return res.status(409).json({ error: `Order is ${result.order?.status || "unknown"}`, requestId: req.requestId });
+        return res
+          .status(409)
+          .json({ error: `Order is ${result.order?.status || "unknown"}`, requestId: req.requestId });
       }
       await audit(req, "order.paid", { workspaceId: req.workspace.id, resourceId: order.id });
       const invoice = await prisma.invoice.findUnique({ where: { orderId: order.id } });
@@ -454,7 +486,10 @@ export function razorpayWebhookHandler() {
 }
 
 function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
 }
 
 function renderInvoice(order) {
