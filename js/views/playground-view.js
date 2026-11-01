@@ -1,207 +1,136 @@
 /**
- * AURA AI Platform
- * Live AI Sandbox & Grounded Citation Verification View Controller
- * Tactical IDE Split-Pane Layout
+ * Cortex Hub - Live Sandbox View Controller (SRS SBX-01..05)
+ * Streams real answers with citations from the server's sandbox endpoint. When the
+ * server has no model configured, it shows recorded sample answers, labelled as such.
  */
 
 import { DEMO_SCENARIOS } from "../data/demo-scenarios.js";
-import { getIconSvg, copyToClipboard, showToast } from "../utils/helpers.js";
+import { escapeHtml, showToast } from "../utils/helpers.js";
+
+const esc = escapeHtml;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+function readAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 export class PlaygroundView {
   constructor(app) {
     this.app = app;
     this.scenarios = DEMO_SCENARIOS;
     this.activeScenario = this.scenarios[0];
-    this.selectedModel = "Claude 3.5 Sonnet";
-    this.selectedRetrieval = "Hybrid (pgvector + BM25)";
-    this.topK = 4;
-    this.temperature = 0.2;
+    this.componentId = "rag-chatbot";
+    this.upload = null; // { name, mediaType, data }
     this.isStreaming = false;
+    this.status = null;
   }
 
-  render(container) {
+  async render(container) {
+    this.container = container;
+    const [components, status] = await Promise.all([
+      this.app.api.getComponents(),
+      this.app.api.getSandboxStatus().catch(() => ({ enabled: false }))
+    ]);
+    this.components = components;
+    this.status = status;
+    if (!components.some((c) => c.id === this.componentId) && components[0]) this.componentId = components[0].id;
+    const live = status.enabled;
+
     container.innerHTML = `
       <div class="playground-container">
-        <!-- Header -->
         <div class="playground-header">
           <div class="playground-title-area">
-            <h2>Live AI Sandbox &amp; Grounding Bench</h2>
-            <p>Directly test vector retrieval accuracy, exact byte-offset citations, and inference cost telemetry.</p>
+            <h2>Live Sandbox</h2>
+            <p>Ask questions about a document and get answers with citations into the source. Uploaded files are used for one request and never stored.</p>
           </div>
-          <!-- Engineering Stages -->
-          <div class="sandbox-stepper">
-            <div class="stepper-node active">
-              <span class="stepper-num">01</span>
-              <span>DATA INGEST</span>
-            </div>
-            <div class="stepper-node active">
-              <span class="stepper-num">02</span>
-              <span>MODEL &amp; ROUTE</span>
-            </div>
-            <div class="stepper-node active">
-              <span class="stepper-num">03</span>
-              <span>GROUNDED CITATIONS</span>
-            </div>
-          </div>
+          <span class="badge ${live ? "badge-lime" : "badge-amber"}">
+            ${live ? `LIVE · ${esc(status.model)}` : "SAMPLE MODE · live sandbox not configured on this server"}
+          </span>
         </div>
 
-        <!-- Split IDE Workspace -->
         <div class="playground-workspace">
-          <!-- Left Controls -->
           <div class="playground-controls-panel">
-            <!-- Dropzone -->
             <div class="card">
-              <span class="form-label" style="margin-bottom: 6px;">[01] INGEST KNOWLEDGE BASE</span>
-              <div class="dropzone" id="playground-dropzone">
-                <div class="dropzone-icon">// DROP FILE</div>
-                <div class="dropzone-text">Click or Drag PDF / DOCX</div>
-                <div class="dropzone-subtext">Max 10MB • Ephemeral memory auto-purged on session end</div>
-                <input type="file" id="playground-file-input" style="display: none;" accept=".pdf,.docx,.txt" />
-              </div>
+              <label class="form-label" for="sandbox-product" style="margin-bottom: 6px;">[01] PRODUCT</label>
+              <select id="sandbox-product" class="select-input">
+                ${components.map((c) => `<option value="${esc(c.id)}" ${c.id === this.componentId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+              </select>
+              ${live ? `<p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 8px;">Runs today: ${esc(status.usedToday)} of ${esc(status.dailyLimit)}${this.app.currentUser ? "" : " (sign in for more)"}</p>` : ""}
+            </div>
 
-              <div id="upload-status-pill" style="display: none; margin-top: 10px; padding: 6px 10px; background: var(--accent-lime-dim); border: 1px solid var(--accent-lime-border); border-radius: var(--radius-xs); font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-lime); align-items: center; gap: 6px;">
-                <span>●</span>
-                <span id="upload-status-text">Parsed into 48 dense embeddings</span>
+            <div class="card">
+              <span class="form-label" style="margin-bottom: 6px;">[02] YOUR DOCUMENT</span>
+              <div class="dropzone" id="playground-dropzone" role="button" tabindex="0" aria-label="Upload a PDF or text file">
+                <div class="dropzone-icon">// DROP FILE</div>
+                <div class="dropzone-text">Click or drag a PDF or .txt file</div>
+                <div class="dropzone-subtext">Max 10 MB. Used for this request only, never stored.</div>
+                <input type="file" id="playground-file-input" style="display: none;" accept=".pdf,.txt,.md,application/pdf,text/plain" />
+              </div>
+              <div id="upload-status" style="margin-top: 8px; font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-lime);" ${this.upload ? "" : "hidden"}>
+                Using <strong id="upload-name">${esc(this.upload?.name || "")}</strong> <button class="btn btn-ghost btn-sm" id="btn-clear-upload" type="button">Remove</button>
               </div>
             </div>
 
-            <!-- Scenarios -->
             <div class="card">
-              <span class="form-label" style="margin-bottom: 6px;">[02] PRE-LOADED TEST SCENARIOS</span>
+              <span class="form-label" style="margin-bottom: 6px;">[03] OR A SAMPLE DOCUMENT</span>
+              <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px;">Short fictional documents written for this demo.</p>
               <div class="scenarios-grid">
                 ${this.scenarios
                   .map(
                     (s) => `
-                  <div class="scenario-chip ${s.id === this.activeScenario.id ? "active" : ""}" data-id="${s.id}">
+                  <div class="scenario-chip ${!this.upload && s.id === this.activeScenario.id ? "active" : ""}" data-id="${esc(s.id)}" role="button" tabindex="0">
                     <div class="scenario-info">
-                      <span class="scenario-title">${s.title}</span>
-                      <span class="scenario-meta">${s.industry} • ${s.pages} pgs (${s.filesize})</span>
+                      <span class="scenario-title">${esc(s.title.replace(/ \((PDF|DOCX|OpenAPI)\)$/, ""))}</span>
+                      <span class="scenario-meta">${esc(s.industry)}</span>
                     </div>
-                    <span style="font-family: var(--font-mono); font-size: 0.8rem; color: ${s.id === this.activeScenario.id ? "var(--accent-lime)" : "var(--text-muted)"}">
-                      →
-                    </span>
-                  </div>
-                `
+                  </div>`
                   )
                   .join("")}
               </div>
             </div>
-
-            <!-- Settings -->
-            <div class="card">
-              <span class="form-label" style="margin-bottom: 8px;">[03] INFERENCE CONFIG</span>
-              
-              <div class="form-group">
-                <label class="form-label">LLM Runtime Provider</label>
-                <select id="model-select" class="select-input" style="font-family: var(--font-mono); font-size: 0.78rem;">
-                  <option value="Claude 3.5 Sonnet" selected>Claude 3.5 Sonnet (Anthropic)</option>
-                  <option value="GPT-4o">GPT-4o (OpenAI)</option>
-                  <option value="Gemini 1.5 Pro">Gemini 1.5 Pro (Google)</option>
-                  <option value="Llama 3.3 70B">Llama 3.3 70B (Air-Gapped Sovereign)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Retrieval Engine</label>
-                <select id="retrieval-select" class="select-input" style="font-family: var(--font-mono); font-size: 0.78rem;">
-                  <option value="Hybrid (pgvector + BM25)" selected>Hybrid (pgvector HNSW + BM25 Lexical)</option>
-                  <option value="Dense Vector (HNSW)">Dense Vector (HNSW Cosine)</option>
-                  <option value="Sparse BM25">Sparse BM25 Keyword Only</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <label class="form-label" style="margin-bottom: 0;">Top-K Chunks</label>
-                  <span id="topk-val" style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime); font-weight: 700;">4</span>
-                </div>
-                <input type="range" id="topk-slider" class="slider-input" min="1" max="8" value="4" />
-              </div>
-
-              <div class="form-group" style="margin-bottom: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <label class="form-label" style="margin-bottom: 0;">Temperature</label>
-                  <span id="temp-val" style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime); font-weight: 700;">0.2</span>
-                </div>
-                <input type="range" id="temp-slider" class="slider-input" min="0" max="1" step="0.1" value="0.2" />
-              </div>
-            </div>
           </div>
 
-          <!-- Right Chat & Citations -->
           <div class="playground-chat-panel">
             <div class="chat-panel-topbar">
               <div class="active-doc-badge">
                 <span>[DOC]</span>
-                <span id="active-doc-title">${this.activeScenario.filename}</span>
+                <span id="active-doc-title">${esc(this.upload ? this.upload.name : `${this.activeScenario.title.replace(/ \((PDF|DOCX|OpenAPI)\)$/, "")} (fictional sample)`)}</span>
               </div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn btn-outline btn-sm" id="btn-export-code">
-                  SDK Code
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btn-clear-chat">
-                  Reset Session
-                </button>
-              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-clear-chat">Clear</button>
             </div>
 
-            <!-- Feed -->
-            <div class="chat-feed" id="chat-feed">
+            <div class="chat-feed" id="chat-feed" aria-live="polite">
               <div class="chat-bubble assistant">
                 <div class="chat-avatar assistant">AI</div>
-                <div class="chat-content">
-                  Session initialized with <strong>${this.activeScenario.filename}</strong> in ephemeral isolated memory.
-                  Submit a query below or select a benchmark prompt to inspect verified page-level source citations.
-                </div>
+                <div class="chat-content">${
+                  live
+                    ? "Ask a question about the selected document. Answers are generated live and cite the passages they rely on."
+                    : "The live sandbox is not configured on this server, so answers below are <strong>recorded samples</strong>, not generated live. Uploads are disabled in sample mode."
+                }</div>
               </div>
             </div>
 
-            <!-- Input Bar -->
             <div class="chat-input-container">
-              <div class="suggested-prompts" id="suggested-prompts">
-                ${this.activeScenario.sampleQuestions
-                  .map((q) => `<span class="prompt-pill" data-prompt="${q}">// ${q}</span>`)
-                  .join("")}
-              </div>
-
+              <div class="suggested-prompts" id="suggested-prompts">${this.promptPills()}</div>
               <form class="chat-input-form" id="chat-form">
-                <input
-                  type="text"
-                  id="chat-query-input"
-                  class="chat-input-field"
-                  placeholder="Enter query to inspect grounded citations..."
-                  value="${this.activeScenario.defaultQuestion}"
-                  autocomplete="off"
-                />
-                <button type="submit" class="btn btn-primary" id="btn-send-chat" style="padding: 0 16px;">
-                  Verify →
-                </button>
+                <input type="text" id="chat-query-input" class="chat-input-field" placeholder="Ask about the document…" value="${esc(this.upload ? "" : this.activeScenario.defaultQuestion)}" autocomplete="off" maxlength="2000" aria-label="Question" />
+                <button type="submit" class="btn btn-primary" id="btn-send-chat" style="padding: 0 16px;">Ask →</button>
               </form>
             </div>
 
-            <!-- Monospaced Telemetry Bar -->
-            <div class="telemetry-strip" id="telemetry-strip">
+            <div class="telemetry-strip">
               <div class="telemetry-metrics">
-                <div class="telemetry-metric">
-                  <span>LATENCY:</span>
-                  <span class="metric-value" id="telem-latency">${this.activeScenario.simulatedResponse.telemetry.latencyMs}ms</span>
-                </div>
-                <div class="telemetry-metric">
-                  <span>PROMPT:</span>
-                  <span class="metric-value" id="telem-prompt">${this.activeScenario.simulatedResponse.telemetry.tokensPrompt} tok</span>
-                </div>
-                <div class="telemetry-metric">
-                  <span>COMPLETION:</span>
-                  <span class="metric-value" id="telem-completion">${this.activeScenario.simulatedResponse.telemetry.tokensCompletion} tok</span>
-                </div>
-                <div class="telemetry-metric">
-                  <span>INFERENCE:</span>
-                  <span class="metric-value" id="telem-cost">$${this.activeScenario.simulatedResponse.telemetry.costUsd} (₹${this.activeScenario.simulatedResponse.telemetry.costInr})</span>
-                </div>
+                <div class="telemetry-metric"><span>LATENCY:</span><span class="metric-value" id="telem-latency">—</span></div>
+                <div class="telemetry-metric"><span>INPUT:</span><span class="metric-value" id="telem-prompt">—</span></div>
+                <div class="telemetry-metric"><span>OUTPUT:</span><span class="metric-value" id="telem-completion">—</span></div>
+                <div class="telemetry-metric"><span>COST:</span><span class="metric-value" id="telem-cost">—</span></div>
               </div>
-              <div style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.7rem;">
-                <span id="telem-model">${this.activeScenario.simulatedResponse.telemetry.model}</span> // <span id="telem-retrieval">${this.activeScenario.simulatedResponse.telemetry.retrievalMethod}</span>
-              </div>
+              <div style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.7rem;" id="telem-model">${live ? esc(status.model) : "recorded sample"}</div>
             </div>
           </div>
         </div>
@@ -211,26 +140,30 @@ export class PlaygroundView {
     this.attachEvents(container);
   }
 
+  promptPills() {
+    if (this.upload) return "";
+    return this.activeScenario.sampleQuestions.map((q) => `<button type="button" class="prompt-pill" data-prompt="${esc(q)}">// ${esc(q)}</button>`).join("");
+  }
+
   attachEvents(container) {
-    const chips = container.querySelectorAll(".scenario-chip");
-    chips.forEach((chip) => {
-      chip.addEventListener("click", () => {
-        chips.forEach((c) => c.classList.remove("active"));
-        chip.classList.add("active");
-        const found = this.scenarios.find((s) => s.id === chip.dataset.id);
-        if (found) {
-          this.activeScenario = found;
-          this.updateActiveScenarioUI(container);
-        }
-      });
+    container.querySelector("#sandbox-product").addEventListener("change", (e) => {
+      this.componentId = e.target.value;
+    });
+
+    container.querySelectorAll(".scenario-chip").forEach((chip) => {
+      const select = () => {
+        this.activeScenario = this.scenarios.find((s) => s.id === chip.dataset.id) || this.activeScenario;
+        this.upload = null;
+        this.render(container);
+      };
+      chip.addEventListener("click", select);
+      chip.addEventListener("keydown", (e) => e.key === "Enter" && select());
     });
 
     const dropzone = container.querySelector("#playground-dropzone");
     const fileInput = container.querySelector("#playground-file-input");
-    const uploadPill = container.querySelector("#upload-status-pill");
-    const uploadText = container.querySelector("#upload-status-text");
-
     dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("keydown", (e) => e.key === "Enter" && fileInput.click());
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropzone.classList.add("dragover");
@@ -239,261 +172,151 @@ export class PlaygroundView {
     dropzone.addEventListener("drop", (e) => {
       e.preventDefault();
       dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        this.simulateFileUpload(e.dataTransfer.files[0].name, uploadPill, uploadText);
-      }
+      if (e.dataTransfer.files?.[0]) this.useFile(e.dataTransfer.files[0]);
     });
-    fileInput.addEventListener("change", (e) => {
-      if (e.target.files && e.target.files[0]) {
-        this.simulateFileUpload(e.target.files[0].name, uploadPill, uploadText);
-      }
-    });
+    fileInput.addEventListener("change", (e) => e.target.files?.[0] && this.useFile(e.target.files[0]));
 
-    container.querySelector("#model-select").addEventListener("change", (e) => {
-      this.selectedModel = e.target.value;
-      container.querySelector("#telem-model").textContent = this.selectedModel;
-      showToast(`Runtime engine: ${this.selectedModel}`, "info");
-    });
+    const clearUpload = container.querySelector("#btn-clear-upload");
+    if (clearUpload) {
+      clearUpload.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.upload = null;
+        this.render(container);
+      });
+    }
 
-    container.querySelector("#retrieval-select").addEventListener("change", (e) => {
-      this.selectedRetrieval = e.target.value;
-      container.querySelector("#telem-retrieval").textContent = this.selectedRetrieval;
-    });
+    container.querySelectorAll(".prompt-pill").forEach((p) =>
+      p.addEventListener("click", () => {
+        container.querySelector("#chat-query-input").value = p.dataset.prompt;
+        this.submitQuery(p.dataset.prompt, container);
+      })
+    );
 
-    const topkSlider = container.querySelector("#topk-slider");
-    const topkVal = container.querySelector("#topk-val");
-    topkSlider.addEventListener("input", (e) => {
-      topkVal.textContent = e.target.value;
-      this.topK = parseInt(e.target.value);
-    });
-
-    const tempSlider = container.querySelector("#temp-slider");
-    const tempVal = container.querySelector("#temp-val");
-    tempSlider.addEventListener("input", (e) => {
-      tempVal.textContent = e.target.value;
-      this.temperature = parseFloat(e.target.value);
-    });
-
-    this.bindPromptPills(container);
-
-    const chatForm = container.querySelector("#chat-form");
-    chatForm.addEventListener("submit", (e) => {
+    container.querySelector("#chat-form").addEventListener("submit", (e) => {
       e.preventDefault();
-      const input = container.querySelector("#chat-query-input");
-      const query = input.value.trim();
-      if (!query || this.isStreaming) return;
-      this.submitQuery(query, container);
+      const query = container.querySelector("#chat-query-input").value.trim();
+      if (query && !this.isStreaming) this.submitQuery(query, container);
     });
 
     container.querySelector("#btn-clear-chat").addEventListener("click", () => {
-      const feed = container.querySelector("#chat-feed");
-      feed.innerHTML = `
-        <div class="chat-bubble assistant">
-          <div class="chat-avatar assistant">AI</div>
-          <div class="chat-content">
-            Ephemeral buffer purged per compliance spec. Ready for next query.
-          </div>
-        </div>
-      `;
-      showToast("Playground session reset", "info");
-    });
-
-    container.querySelector("#btn-export-code").addEventListener("click", () => {
-      this.showCodeExportModal();
+      container.querySelector("#chat-feed").innerHTML = "";
     });
   }
 
-  bindPromptPills(container) {
-    const pills = container.querySelectorAll(".prompt-pill");
-    pills.forEach((p) => {
-      p.addEventListener("click", () => {
-        const promptText = p.dataset.prompt;
-        const input = container.querySelector("#chat-query-input");
-        input.value = promptText;
-        this.submitQuery(promptText, container);
-      });
-    });
+  async useFile(file) {
+    if (!this.status?.enabled) {
+      showToast("Uploads need the live sandbox, which is not configured on this server.", "info");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showToast("File is larger than 10 MB.", "warning");
+      return;
+    }
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const isText = file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name);
+    if (!isPdf && !isText) {
+      showToast("Upload a PDF or a plain-text file. Word documents are not supported; save as PDF first.", "warning");
+      return;
+    }
+    try {
+      this.upload = isPdf
+        ? { name: file.name, mediaType: "application/pdf", data: await readAsBase64(file) }
+        : { name: file.name, mediaType: "text/plain", data: await file.text() };
+      await this.render(this.container);
+      this.container.querySelector("#chat-query-input").focus();
+    } catch {
+      showToast("Could not read that file.", "error");
+    }
   }
 
-  updateActiveScenarioUI(container) {
-    container.querySelector("#active-doc-title").textContent = this.activeScenario.filename;
-    container.querySelector("#chat-query-input").value = this.activeScenario.defaultQuestion;
-
-    const promptsDiv = container.querySelector("#suggested-prompts");
-    promptsDiv.innerHTML = this.activeScenario.sampleQuestions
-      .map((q) => `<span class="prompt-pill" data-prompt="${q}">// ${q}</span>`)
-      .join("");
-    this.bindPromptPills(container);
-
-    const feed = container.querySelector("#chat-feed");
-    feed.innerHTML = `
-      <div class="chat-bubble assistant">
-        <div class="chat-avatar assistant">AI</div>
-        <div class="chat-content">
-          Loaded pre-indexed scenario: <strong>${this.activeScenario.title}</strong> (${this.activeScenario.pages} pages).
-          Ready to verify grounded citations and calculate telemetry.
-        </div>
-      </div>
-    `;
-
-    const t = this.activeScenario.simulatedResponse.telemetry;
-    container.querySelector("#telem-latency").textContent = `${t.latencyMs}ms`;
-    container.querySelector("#telem-prompt").textContent = `${t.tokensPrompt} tok`;
-    container.querySelector("#telem-completion").textContent = `${t.tokensCompletion} tok`;
-    container.querySelector("#telem-cost").textContent = `$${t.costUsd} (₹${t.costInr})`;
+  addBubble(feed, role, html) {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble ${role}`;
+    bubble.innerHTML = `<div class="chat-avatar ${role}">${role === "user" ? "YOU" : "AI"}</div><div class="chat-content">${html}</div>`;
+    feed.appendChild(bubble);
+    feed.scrollTop = feed.scrollHeight;
+    return bubble.querySelector(".chat-content");
   }
 
-  simulateFileUpload(filename, pill, textSpan) {
-    pill.style.display = "flex";
-    textSpan.innerHTML = `[CHUNKING] Generating HNSW vectors for <strong>${filename}</strong>...`;
-
-    setTimeout(() => {
-      textSpan.innerHTML = `[INDEXED] <strong>${filename}</strong> (36 chunks, 1,536-dim HNSW embeddings)`;
-      showToast(`Document "${filename}" vectorized successfully!`, "success");
-      document.querySelector("#active-doc-title").textContent = filename;
-    }, 1100);
+  renderCitations(citations) {
+    if (!citations.length) return `<div style="margin-top: 10px; font-size: 0.78rem; color: var(--text-muted);">No citations returned for this answer.</div>`;
+    return `
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-medium);">
+        <div style="font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--accent-lime); margin-bottom: 6px;">// CITATIONS (${citations.length})</div>
+        ${citations
+          .map(
+            (c) => `<div class="citation-box">
+          <div class="citation-header"><span>${esc(c.documentTitle || "Document")}${c.location ? ` · ${esc(c.location)}` : ""}</span></div>
+          <div class="citation-excerpt">"${esc(c.citedText)}"</div>
+        </div>`
+          )
+          .join("")}
+      </div>`;
   }
 
-  submitQuery(query, container) {
+  setTelemetry(container, { latencyMs, inputTokens, outputTokens, costUsd, model }) {
+    container.querySelector("#telem-latency").textContent = latencyMs != null ? `${latencyMs} ms` : "—";
+    container.querySelector("#telem-prompt").textContent = inputTokens != null ? `${inputTokens.toLocaleString()} tok` : "—";
+    container.querySelector("#telem-completion").textContent = outputTokens != null ? `${outputTokens.toLocaleString()} tok` : "—";
+    container.querySelector("#telem-cost").textContent = costUsd != null ? `$${costUsd}` : "—";
+    if (model) container.querySelector("#telem-model").textContent = model;
+  }
+
+  async submitQuery(query, container) {
     const feed = container.querySelector("#chat-feed");
     const sendBtn = container.querySelector("#btn-send-chat");
-    const input = container.querySelector("#chat-query-input");
+    this.addBubble(feed, "user", esc(query));
+    container.querySelector("#chat-query-input").value = "";
 
-    const userMsg = document.createElement("div");
-    userMsg.className = "chat-bubble user";
-    userMsg.innerHTML = `
-      <div class="chat-avatar user">USR</div>
-      <div class="chat-content">${query}</div>
-    `;
-    feed.appendChild(userMsg);
-    input.value = "";
-    feed.scrollTop = feed.scrollHeight;
+    if (!this.status?.enabled) {
+      // Recorded sample (no model configured on the server)
+      const sample = this.activeScenario.simulatedResponse;
+      const box = this.addBubble(feed, "assistant", "");
+      box.innerHTML = `<div class="badge badge-amber" style="margin-bottom: 8px;">RECORDED SAMPLE, NOT GENERATED LIVE</div><div>${esc(sample.answer)}</div>${this.renderCitations(
+        sample.citations.map((c) => ({ documentTitle: c.docTitle, location: `Page ${c.pageNo}`, citedText: c.excerpt }))
+      )}`;
+      this.setTelemetry(container, { model: "recorded sample" });
+      return;
+    }
 
     this.isStreaming = true;
     sendBtn.disabled = true;
+    const box = this.addBubble(feed, "assistant", `<span style="color: var(--text-muted);">Reading the document…</span>`);
+    const answer = document.createElement("div");
+    answer.style.whiteSpace = "pre-wrap";
+    let started = false;
 
-    const assistantMsg = document.createElement("div");
-    assistantMsg.className = "chat-bubble assistant";
-    assistantMsg.innerHTML = `
-      <div class="chat-avatar assistant">AI</div>
-      <div class="chat-content">
-        <span style="font-family: var(--font-mono); color: var(--accent-lime); font-size: 0.8rem;">
-          [QUERYING ${this.selectedRetrieval.toUpperCase()}] Retrieving candidate vectors...
-        </span>
-      </div>
-    `;
-    feed.appendChild(assistantMsg);
-    feed.scrollTop = feed.scrollHeight;
+    const payload = { componentId: this.componentId, question: query };
+    if (this.upload) payload.document = this.upload;
+    else payload.scenarioId = this.activeScenario.id;
 
-    const latencyBase = this.activeScenario.simulatedResponse.telemetry.latencyMs;
-    const actualLatency = Math.round(latencyBase + (Math.random() * 100 - 50));
-
-    setTimeout(() => {
-      const responseData = this.activeScenario.simulatedResponse;
-      const contentBox = assistantMsg.querySelector(".chat-content");
-
-      contentBox.innerHTML = `
-        <div style="margin-bottom: 12px;">${responseData.answer}</div>
-        
-        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-medium);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--accent-lime); letter-spacing: 0.05em;">
-              // VERIFIED GROUNDED CITATIONS (${responseData.citations.length})
-            </span>
-            <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);">CONFIDENCE: 99.4%</span>
-          </div>
-
-          ${responseData.citations
-            .map(
-              (c) => `
-            <div class="citation-box">
-              <div class="citation-header">
-                <span>PAGE ${c.pageNo} // ${c.section}</span>
-                <span>MATCH: ${c.confidence}%</span>
-              </div>
-              <div class="citation-excerpt">
-                "${c.excerpt}"
-              </div>
-            </div>
-          `
-            )
-            .join("")}
-        </div>
-      `;
-
-      container.querySelector("#telem-latency").textContent = `${actualLatency}ms`;
-      container.querySelector("#telem-cost").textContent = `$${responseData.telemetry.costUsd} (₹${responseData.telemetry.costInr})`;
-
+    try {
+      await this.app.api.runSandbox(payload, {
+        onText: (text) => {
+          if (!started) {
+            box.innerHTML = "";
+            box.appendChild(answer);
+            started = true;
+          }
+          answer.textContent += text;
+          feed.scrollTop = feed.scrollHeight;
+        },
+        onDone: (result) => {
+          box.insertAdjacentHTML("beforeend", this.renderCitations(result.citations));
+          this.setTelemetry(container, result);
+          if (this.status) this.status.usedToday += 1;
+        },
+        onError: (message) => {
+          box.insertAdjacentHTML("beforeend", `<div style="color: var(--status-error); margin-top: 8px;">${esc(message)}</div>`);
+          if (!started) box.querySelector("span")?.remove();
+        }
+      });
+    } catch (err) {
+      box.innerHTML = `<div style="color: var(--status-error);">${esc(err.message)}</div>`;
+    } finally {
       this.isStreaming = false;
       sendBtn.disabled = false;
       feed.scrollTop = feed.scrollHeight;
-    }, actualLatency);
-  }
-
-  showCodeExportModal() {
-    let modal = document.getElementById("code-export-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "code-export-modal";
-      modal.className = "modal-backdrop";
-      document.body.appendChild(modal);
     }
-
-    const pythonCode = `import requests
-
-API_URL = "https://api.aicomponents.io/v1/rag/query"
-HEADERS = {
-    "Authorization": "Bearer sk-live-YOUR-API-KEY",
-    "Content-Type": "application/json"
-}
-
-payload = {
-    "document_id": "${this.activeScenario.id}",
-    "model": "${this.selectedModel}",
-    "retrieval_strategy": "${this.selectedRetrieval}",
-    "top_k": ${this.topK},
-    "temperature": ${this.temperature},
-    "prompt": "${this.activeScenario.defaultQuestion}"
-}
-
-response = requests.post(API_URL, headers=HEADERS, json=payload)
-data = response.json()
-
-print("Deterministic Response:", data["answer"])
-for cite in data["citations"]:
-    print(f"-> [P.{cite['page_no']} - {cite['section']}]: {cite['excerpt']}")`;
-
-    modal.innerHTML = `
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <div>
-            <h3 class="modal-title">Live API Integration Manifest</h3>
-            <p style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
-              // Programmatic reproduction of current active parameters
-            </p>
-          </div>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
-        </div>
-        <div class="modal-body">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime);">python-requests v1.0</span>
-            <button class="btn btn-outline btn-sm" id="btn-copy-sdk-code">Copy Manifest</button>
-          </div>
-          <pre style="background: var(--bg-deep); border: 1px solid var(--border-medium); padding: 12px; border-radius: var(--radius-xs); font-family: var(--font-mono); font-size: 0.76rem; color: #E2E8F0; overflow-x: auto; line-height: 1.5;">${pythonCode}</pre>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary modal-close-btn">Done</button>
-        </div>
-      </div>
-    `;
-
-    modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
-    });
-
-    modal.querySelector("#btn-copy-sdk-code").addEventListener("click", () => {
-      copyToClipboard(pythonCode, "API integration snippet copied!");
-    });
   }
 }

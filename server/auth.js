@@ -6,15 +6,14 @@
 
 import { randomBytes, scrypt, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
+import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
 
 const scryptAsync = promisify(scrypt);
 
 export const SESSION_COOKIE = "ch_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const SCRYPT_N = 16384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const KEY_LEN = 64;
+// Argon2id (SRS AUTH-01), OWASP-recommended parameters: 19 MiB memory, 2 iterations
+const ARGON2_OPTIONS = { algorithm: 2 /* Argon2id */, memoryCost: 19456, timeCost: 2, parallelism: 1 };
 
 // Platform roles (User.globalRole) allowed into staff-only areas
 export const PLATFORM_ADMIN_ROLES = ["ADMIN", "SUPERADMIN"];
@@ -28,13 +27,25 @@ export function sha256(value) {
 }
 
 export async function hashPassword(password) {
-  const salt = randomBytes(16);
-  const derived = await scryptAsync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
-  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64")}$${derived.toString("base64")}`;
+  return argon2Hash(password, ARGON2_OPTIONS);
+}
+
+/** True when a stored hash uses an older scheme and should be replaced after a successful login. */
+export function needsRehash(stored) {
+  return !stored || !stored.startsWith("$argon2id$");
 }
 
 export async function verifyPassword(password, stored) {
-  if (!stored || !stored.startsWith("scrypt$")) return false;
+  if (!stored) return false;
+  if (stored.startsWith("$argon2")) {
+    try {
+      return await argon2Verify(stored, password);
+    } catch {
+      return false;
+    }
+  }
+  // Legacy scrypt hashes from before Argon2id; upgraded on next login
+  if (!stored.startsWith("scrypt$")) return false;
   const [, n, r, p, saltB64, hashB64] = stored.split("$");
   const expected = Buffer.from(hashB64, "base64");
   const derived = await scryptAsync(password, Buffer.from(saltB64, "base64"), expected.length, {

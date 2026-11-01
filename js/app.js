@@ -10,7 +10,7 @@ import { CustomerView } from "./views/customer-view.js";
 import { AdminView } from "./views/admin-view.js";
 import { SellerView } from "./views/seller-view.js";
 import { MOCK_CUSTOMIZATION_REQUESTS } from "./data/mock-dashboard.js";
-import { getIconSvg, showToast } from "./utils/helpers.js";
+import { escapeHtml, getIconSvg, showToast } from "./utils/helpers.js";
 import { apiClient } from "./services/api-client.js";
 
 class Application {
@@ -116,6 +116,8 @@ class Application {
 
   setSignedInUser(user) {
     this.currentUser = user;
+    this.api.setCurrentUser(user);
+    this.refreshCustomizationRequests();
     const label = document.getElementById("auth-user-label");
     const signInBtn = document.getElementById("auth-signin-btn");
     const signOutBtn = document.getElementById("auth-signout-btn");
@@ -156,7 +158,6 @@ class Application {
       if (footerUptime) {
         footerUptime.textContent = online ? "API reachable (checked just now)" : "API unreachable: sample data";
       }
-      this.customizationRequests = await this.api.getCustomizationRequests();
     } catch {
       const statusText = document.getElementById("sys-status-text");
       if (statusText) statusText.textContent = "STANDALONE READY";
@@ -229,6 +230,9 @@ class Application {
         if (route === "configurator" && this.views.configurator) {
           this.views.configurator.config.baseComponentId = params.componentId;
         }
+        if (route === "playground" && this.views.playground) {
+          this.views.playground.componentId = params.componentId;
+        }
       }
 
       // Render view
@@ -246,21 +250,26 @@ class Application {
 
   // Customization Request Store Methods
   getCustomizationRequests() {
-    return this.api ? this.api.memoryRequests : this.customizationRequests;
+    return this.customizationRequests;
+  }
+
+  async refreshCustomizationRequests() {
+    try {
+      this.customizationRequests = await this.api.getCustomizationRequests();
+    } catch {
+      this.customizationRequests = this.api.memoryRequests;
+    }
+    return this.customizationRequests;
   }
 
   async addCustomizationRequest(req) {
-    if (this.api) {
-      const saved = await this.api.submitCustomizationRequest(req);
-      this.customizationRequests = this.api.memoryRequests;
-      return saved;
-    }
-    this.customizationRequests.unshift(req);
-    return req;
+    const saved = await this.api.submitCustomizationRequest(req);
+    await this.refreshCustomizationRequests();
+    return saved;
   }
 
   // Checkout & Licensing Flow Modal (FR-4.1 - FR-4.8)
-  openCheckoutModal(item) {
+  checkoutModal(html) {
     let modal = document.getElementById("checkout-modal");
     if (!modal) {
       modal = document.createElement("div");
@@ -268,132 +277,180 @@ class Application {
       modal.className = "modal-backdrop";
       document.body.appendChild(modal);
     }
-
-    const priceNum = parseInt(item.price.replace(/[^0-9]/g, "")) || 499;
-    const taxNum = Math.round(priceNum * 0.18); // 18% GST / VAT (FR-4.8)
-    const totalNum = priceNum + taxNum;
-
-    modal.innerHTML = `
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <div>
-            <span class="badge badge-lime">// SECURE CHECKOUT (FR-4.1)</span>
-            <h3 class="modal-title" style="margin-top: 4px;">License Provisioning & Payment</h3>
-          </div>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
-        </div>
-        <div class="modal-body">
-          <div style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); padding: 16px; margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <strong style="font-family: var(--font-heading); font-size: 1.05rem; color: #FFF;">${item.componentName}</strong>
-              <span class="badge badge-lime">${item.tier}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
-              <span>Base License Subtotal</span>
-              <span>$${priceNum}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">
-              <span>Estimated Tax (18% GST / VAT)</span>
-              <span>$${taxNum}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 700; color: #FFF; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
-              <span>Total Payable</span>
-              <span style="color: var(--accent-lime); font-family: var(--font-heading);">$${totalNum} USD <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">(₹${Math.round(totalNum * 83.5).toLocaleString()})</span></span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Customer Tenant Account</label>
-            <input type="text" class="text-input" value="Acme Health Technologies Inc. (tnt-8849-acme)" disabled />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Payment Gateway Simulator (FR-4.1)</label>
-            <select class="select-input" id="checkout-payment-method">
-              <option value="card">Corporate Credit Card (ending in •••• 4242)</option>
-              <option value="wire">Direct ACH / Wire Transfer (Invoice Net 30)</option>
-              <option value="upi">UPI / Razorpay Business</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary modal-close-btn">Cancel</button>
-          <button class="btn btn-primary" id="btn-complete-checkout">
-            Confirm & Activate License ($${totalNum})
-          </button>
-        </div>
-      </div>
-    `;
-
+    modal.innerHTML = `<div class="modal-dialog" style="max-width: 560px;">${html}</div>`;
     modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
+    modal.querySelectorAll(".modal-close-btn").forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
+    return modal;
+  }
+
+  async openCheckoutModal(item) {
+    const header = (title) => `
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--text-primary);">${escapeHtml(title)}</h3>
+        <button class="btn-icon btn-ghost modal-close-btn" aria-label="Close">${getIconSvg("x", 20)}</button>
+      </div>`;
+
+    if (!this.api.hasWorkspace("BUYER")) {
+      const modal = this.checkoutModal(`${header("Sign in to buy")}
+        <div class="modal-body"><p style="color: var(--text-secondary);">Purchases are made by a buyer workspace. Sign in with a buyer account to buy <strong>${escapeHtml(item.componentName)}</strong>.</p></div>
+        <div class="modal-footer"><button class="btn btn-secondary modal-close-btn">Cancel</button><button class="btn btn-primary" id="btn-checkout-signin">Sign in</button></div>`);
+      modal.querySelector("#btn-checkout-signin").addEventListener("click", () => {
+        modal.classList.remove("active");
+        document.getElementById("auth-signin-btn").click();
+      });
+      return;
+    }
+
+    let prices;
+    let config;
+    try {
+      [prices, config] = await Promise.all([this.api.getProductPrices(item.componentId), this.api.getCheckoutConfig()]);
+    } catch (err) {
+      this.checkoutModal(`${header("Checkout unavailable")}<div class="modal-body"><p>${escapeHtml(err.message)}</p></div>`);
+      return;
+    }
+    const buyable = prices.prices.filter((p) => p.model !== "CUSTOM");
+    if (config.provider === "unavailable" || buyable.length === 0) {
+      this.checkoutModal(`${header("Checkout unavailable")}<div class="modal-body"><p style="color: var(--text-secondary);">${
+        buyable.length === 0 ? "This product is quoted on request. Use the configurator to request a quote." : "Payments are not configured on this server yet."
+      }</p></div>`);
+      return;
+    }
+
+    const selected = buyable.find((p) => p.tier === item.tier) || buyable[0];
+    const gstPct = Math.round(prices.gstRate * 100);
+    const fmt = (minor) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(minor / 100);
+    const totals = (p) => {
+      const tax = Math.round(p.amountMinor * prices.gstRate);
+      return { sub: fmt(p.amountMinor), tax: fmt(tax), total: fmt(p.amountMinor + tax) };
+    };
+    const t = totals(selected);
+
+    const modal = this.checkoutModal(`${header(`Buy ${item.componentName}`)}
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="checkout-tier">Plan</label>
+          <select class="select-input" id="checkout-tier">
+            ${buyable.map((p) => `<option value="${escapeHtml(p.tier)}" ${p.tier === selected.tier ? "selected" : ""}>${escapeHtml(p.tier)}: ${escapeHtml(p.formatted)}${p.model === "SUBSCRIPTION" ? " / month" : ""}</option>`).join("")}
+          </select>
+        </div>
+        <div style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); padding: 14px; font-family: var(--font-mono); font-size: 0.85rem; display: grid; gap: 6px;">
+          <div style="display: flex; justify-content: space-between;"><span>Subtotal</span><span id="co-sub">${t.sub}</span></div>
+          <div style="display: flex; justify-content: space-between;"><span>GST (${gstPct}%)</span><span id="co-tax">${t.tax}</span></div>
+          <div style="display: flex; justify-content: space-between; font-weight: 700; padding-top: 6px; border-top: 1px solid var(--border-subtle);"><span>Total</span><span id="co-total">${t.total}</span></div>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 10px;">
+          ${config.provider === "razorpay" ? "You will pay securely in Razorpay Checkout (cards, UPI, netbanking). Card details never reach Cortex Hub." : "<strong>Test mode:</strong> payments are not configured on this server, so this order is completed with a simulated payment and no money is taken."}
+          Monthly plans cover 30 days; renew by purchasing again.
+        </p>
+        <p id="co-error" role="alert" style="color: var(--status-error); font-size: 0.85rem; min-height: 1.2em;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">Cancel</button>
+        <button class="btn btn-primary" id="btn-complete-checkout">${config.provider === "razorpay" ? "Continue to payment" : "Complete test purchase"}</button>
+      </div>`);
+
+    const tierSelect = modal.querySelector("#checkout-tier");
+    tierSelect.addEventListener("change", () => {
+      const p = buyable.find((x) => x.tier === tierSelect.value);
+      const nt = totals(p);
+      modal.querySelector("#co-sub").textContent = nt.sub;
+      modal.querySelector("#co-tax").textContent = nt.tax;
+      modal.querySelector("#co-total").textContent = nt.total;
     });
 
-    modal.querySelector("#btn-complete-checkout").addEventListener("click", async () => {
-      let provisionedKey = null;
-      if (this.api) {
-        const lic = await this.api.checkoutLicense(item.componentId, item.tier);
-        provisionedKey = lic ? lic.licenseKey : null;
-      }
-      // G2 FIX: CSPRNG fallback key if backend doesn't provide one
-      let generatedLicenseKey = provisionedKey;
-      if (!generatedLicenseKey) {
-        const fb = new Uint8Array(8);
-        crypto.getRandomValues(fb);
-        const fbHex = Array.from(fb).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-        generatedLicenseKey = `LIC-${item.componentId.toUpperCase().slice(0, 4)}-${fbHex.substring(0, 6)}-${fbHex.substring(6)}`;
-      }
-
-      modal.innerHTML = `
-        <div class="modal-dialog" style="text-align: center; max-width: 500px;">
-          <div class="modal-body" style="padding: 36px 20px;">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--success-bg); border: 2px solid var(--success); color: var(--success); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-              ${getIconSvg("check-circle", 30)}
-            </div>
-            <h3 style="font-family: var(--font-heading); font-size: 1.4rem; margin-bottom: 6px;">License Activated!</h3>
-            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 18px;">
-              Your production license for <strong>${item.componentName}</strong> (${item.tier}) has been provisioned.
-            </p>
-            <div style="background: var(--bg-deep); border: 1px solid var(--border-subtle); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
-              <span style="font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase;">Issued License Key (FR-4.5)</span>
-              <div style="font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; color: var(--cyan); margin-top: 4px;">
-                ${generatedLicenseKey}
-              </div>
-            </div>
-            <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
-              <button class="btn btn-secondary btn-sm" id="btn-dl-artifact-checkout">
-                ${getIconSvg("download", 13)} Signed Artifact (.tar.gz)
-              </button>
-              <button class="btn btn-secondary btn-sm" id="btn-dl-invoice-checkout">
-                ${getIconSvg("download", 13)} Invoice PDF (FR-4.4)
-              </button>
-              <button class="btn btn-primary btn-sm" id="btn-go-to-portal">
-                Digital Delivery Vault →
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      modal.querySelector("#btn-dl-artifact-checkout").addEventListener("click", () => {
-        showToast(`Authenticated signed artifact download initiated! (SHA-256 Verified)`, "success");
-      });
-
-      modal.querySelector("#btn-dl-invoice-checkout").addEventListener("click", () => {
-        showToast("Invoice PDF generated and downloaded!", "success");
-      });
-
-      modal.querySelector("#btn-go-to-portal").addEventListener("click", () => {
-        modal.classList.remove("active");
-        this.navigateTo("customer");
-        // Switch customer view to the vault tab
-        if (this.views.customer) {
-          this.views.customer.activeTab = "vault";
-          const custContainer = document.getElementById("view-customer");
-          if (custContainer) this.views.customer.render(custContainer);
+    const idempotencyKey = crypto.randomUUID();
+    const payBtn = modal.querySelector("#btn-complete-checkout");
+    const errorEl = modal.querySelector("#co-error");
+    payBtn.addEventListener("click", async () => {
+      payBtn.disabled = true;
+      errorEl.textContent = "";
+      try {
+        const order = await this.api.startCheckout(item.componentId, tierSelect.value, idempotencyKey);
+        if (order.provider === "razorpay") {
+          await this.payWithRazorpay(order, modal, item);
+        } else {
+          this.showCheckoutResult(await this.api.confirmCheckout(order.orderId), item);
         }
-      });
+      } catch (err) {
+        errorEl.textContent = err.message;
+        payBtn.disabled = false;
+      }
+    });
+  }
+
+  loadRazorpayScript() {
+    if (window.Razorpay) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Could not load Razorpay Checkout"));
+      document.head.appendChild(script);
+    });
+  }
+
+  async payWithRazorpay(order, modal, item) {
+    await this.loadRazorpayScript();
+    modal.classList.remove("active");
+    const rzp = new window.Razorpay({
+      key: order.razorpay.keyId,
+      amount: order.razorpay.amount,
+      currency: order.razorpay.currency,
+      name: order.razorpay.name,
+      description: order.razorpay.description,
+      order_id: order.razorpay.orderId,
+      prefill: order.razorpay.prefill,
+      handler: async (response) => {
+        try {
+          this.showCheckoutResult(await this.api.confirmCheckout(order.orderId, response), item);
+        } catch (err) {
+          showToast(`Payment received but confirmation failed: ${err.message}. Your licence will appear once the payment webhook arrives.`, "error");
+        }
+      },
+      modal: { ondismiss: () => showToast("Payment cancelled.", "info") }
+    });
+    rzp.on("payment.failed", (resp) => showToast(`Payment failed: ${resp.error?.description || "unknown error"}`, "error"));
+    rzp.open();
+  }
+
+  showCheckoutResult(result, item) {
+    const keys = result.licenseKeys || [];
+    const modal = this.checkoutModal(`
+      <div class="modal-body" style="text-align: center; padding: 32px 20px;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--success); color: var(--success); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+          ${getIconSvg("check-circle", 30)}
+        </div>
+        <h3 style="font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: 6px;">Licence activated</h3>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+          ${escapeHtml(item.componentName)} is now in your workspace${result.simulatedPayment ? " (test purchase, no money taken)" : ""}.
+        </p>
+        ${
+          keys.length
+            ? keys
+                .map(
+                  (k) => `<div style="background: var(--bg-deep); border: 1px solid var(--border-subtle); padding: 12px; margin-bottom: 12px; text-align: left;">
+            <span style="font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase;">Licence key (shown once, store it now)</span>
+            <code style="display: block; font-family: var(--font-mono); font-size: 0.95rem; margin-top: 4px; word-break: break-all;">${escapeHtml(k.licenseKey)}</code>
+          </div>`
+                )
+                .join("")
+            : `<p style="font-size: 0.82rem; color: var(--text-secondary);">Your key was already issued. Rotate it from the buyer portal to get a new one.</p>`
+        }
+        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+          ${keys.length ? `<button class="btn btn-secondary btn-sm" id="btn-copy-licence">Copy key</button>` : ""}
+          <button class="btn btn-secondary btn-sm" id="btn-dl-invoice-checkout">${getIconSvg("download", 13)} Invoice</button>
+          <button class="btn btn-primary btn-sm" id="btn-go-to-portal">Go to buyer portal →</button>
+        </div>
+      </div>`);
+
+    const copyBtn = modal.querySelector("#btn-copy-licence");
+    if (copyBtn) copyBtn.addEventListener("click", () => navigator.clipboard.writeText(keys.map((k) => k.licenseKey).join("\n")).then(() => showToast("Copied", "success")));
+    modal.querySelector("#btn-dl-invoice-checkout").addEventListener("click", () => window.open(`/api/invoices/${encodeURIComponent(result.orderId)}`, "_blank", "noopener"));
+    modal.querySelector("#btn-go-to-portal").addEventListener("click", () => {
+      modal.classList.remove("active");
+      this.views.customer.activeTab = "overview";
+      this.navigateTo("customer");
     });
   }
 }

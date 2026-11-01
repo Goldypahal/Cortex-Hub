@@ -3,60 +3,13 @@
  *   DATABASE_URL=... SEED_DEMO_PASSWORD=... npm test
  */
 
-import { test, before, after } from "node:test";
+import "./setup.js";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "crypto";
-import { app, prisma } from "../server/server.js";
+import { client, signedIn, useServer } from "./helpers.js";
 
-const PASSWORD = process.env.SEED_DEMO_PASSWORD;
-let server;
-let base;
-
-before(async () => {
-  assert.ok(PASSWORD, "Set SEED_DEMO_PASSWORD to the demo accounts' password");
-  await new Promise((resolve) => {
-    server = app.listen(0, resolve);
-  });
-  base = `http://127.0.0.1:${server.address().port}`;
-});
-
-after(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  await prisma.$disconnect();
-});
-
-// Minimal client that keeps the session cookie between calls
-function client() {
-  let cookie = "";
-  return async (method, path, body, headers = {}) => {
-    const res = await fetch(`${base}${path}`, {
-      method,
-      headers: {
-        ...(body !== undefined && { "Content-Type": "application/json" }),
-        ...(cookie && { Cookie: cookie }),
-        ...headers
-      },
-      body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body)
-    });
-    const setCookie = res.headers.get("set-cookie");
-    if (setCookie) cookie = setCookie.split(";")[0];
-    const text = await res.text();
-    let json = null;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = text;
-    }
-    return { status: res.status, body: json, headers: res.headers };
-  };
-}
-
-async function signedIn(email) {
-  const call = client();
-  const res = await call("POST", "/api/auth/login", { email, password: PASSWORD });
-  assert.equal(res.status, 200, `login ${email}`);
-  return call;
-}
+useServer();
 
 test("health and public catalog are open", async () => {
   const call = client();
@@ -69,16 +22,21 @@ test("health and public catalog are open", async () => {
 test("protected routes reject anonymous callers", async () => {
   const call = client();
   for (const [method, path, body] of [
-    ["GET", "/api/licenses"],
+    ["GET", "/api/entitlements"],
+    ["GET", "/api/orders"],
+    ["POST", "/api/checkout", { productSlug: "rag-chatbot", tier: "Starter" }],
+    ["GET", "/api/seller/dashboard"],
+    ["POST", "/api/seller/payouts", { amountMinor: 100000 }],
+    ["GET", "/api/admin/moderation"],
+    ["GET", "/api/admin/payouts"],
+    ["POST", "/api/notifications/sms", { to: "+910000000000", message: "hi" }],
     ["GET", "/api/api-keys"],
     ["GET", "/api/tickets"],
     ["GET", "/api/tenant"],
     ["GET", "/api/customization-requests"],
     ["POST", "/api/components", {}],
     ["DELETE", "/api/components/rag-chatbot"],
-    ["POST", "/api/licenses/checkout", { componentId: "rag-chatbot" }],
-    ["GET", "/api/moderation/queue"],
-    ["GET", "/api/analytics/revenue"]
+    ["GET", "/api/admin/revenue"]
   ]) {
     assert.equal((await call(method, path, body)).status, 401, `${method} ${path}`);
   }
@@ -104,7 +62,7 @@ test("buyer can use their own portal but not staff routes", async () => {
   assert.equal(me.status, 200);
   assert.equal(me.body.user.passwordHash, undefined);
 
-  assert.equal((await buyer("GET", "/api/licenses")).status, 200);
+  assert.equal((await buyer("GET", "/api/entitlements")).status, 200);
   assert.equal((await buyer("GET", "/api/tenant")).status, 200);
 
   const key = await buyer("POST", "/api/api-keys", { name: "CI key", environment: "Staging" });
@@ -114,32 +72,30 @@ test("buyer can use their own portal but not staff routes", async () => {
   const keys = await buyer("GET", "/api/api-keys");
   assert.ok(keys.body.every((k) => k.keyHash === undefined));
 
-  const lic = await buyer("POST", "/api/licenses/checkout", { componentId: "rag-chatbot", tier: "Starter" });
-  assert.equal(lic.status, 201);
-  assert.match(lic.body.license.licenseKey, /^LIC-RAG--[0-9A-F]{6}-[0-9A-F]{6}$/);
 
   assert.equal((await buyer("POST", "/api/tickets", { subject: "Test ticket", message: "hi" })).status, 201);
   assert.equal((await buyer("POST", "/api/customization-requests", { componentId: "rag-chatbot" })).status, 201);
 
   assert.equal((await buyer("POST", "/api/components", { id: "x" })).status, 403);
   assert.equal((await buyer("DELETE", "/api/components/rag-chatbot")).status, 403);
-  assert.equal((await buyer("GET", "/api/moderation/queue")).status, 403);
-  assert.equal((await buyer("GET", "/api/analytics/revenue")).status, 403);
-  assert.equal((await buyer("POST", "/api/products/submit", { name: "x" })).status, 403);
+  assert.equal((await buyer("GET", "/api/admin/moderation")).status, 403);
+  assert.equal((await buyer("GET", "/api/admin/revenue")).status, 403);
+  assert.equal((await buyer("POST", "/api/seller/products", { name: "x" })).status, 403);
+  assert.equal((await buyer("POST", "/api/notifications/whatsapp", { to: "+910000000000", message: "hi" })).status, 403);
 });
 
 test("seller can submit products but not use buyer routes", async () => {
   const seller = await signedIn("seller@apex-ai.test");
-  const sub = await seller("POST", "/api/products/submit", { name: "Test MCP", basePrice: 99 });
+  const sub = await seller("POST", "/api/seller/products", { name: "Test MCP Server", shortDesc: "An MCP server used in tests", basePriceInr: 999 });
   assert.equal(sub.status, 201);
-  assert.match(sub.body.moderation.checklist.malwareScan, /^PENDING/);
-  assert.equal((await seller("GET", "/api/licenses")).status, 403);
+  assert.equal(sub.body.product.status, "UNDER_REVIEW");
+  assert.equal((await seller("GET", "/api/entitlements")).status, 403);
 });
 
 test("admin can manage catalog and validation rejects bad input", async () => {
   const admin = await signedIn("admin@cortex-hub.test");
-  assert.equal((await admin("GET", "/api/analytics/revenue")).status, 200);
-  assert.equal((await admin("GET", "/api/moderation/queue")).status, 200);
+  assert.equal((await admin("GET", "/api/admin/revenue")).status, 200);
+  assert.equal((await admin("GET", "/api/admin/moderation")).status, 200);
 
   const bad = await admin("POST", "/api/components", { id: "Bad Id!", name: "" });
   assert.equal(bad.status, 400);
@@ -175,14 +131,14 @@ test("one buyer workspace cannot see or change another's data", async () => {
   assert.equal((await buyerB("DELETE", `/api/api-keys/${keyA.body.id}`)).status, 404);
   const ticketsB = await buyerB("GET", "/api/tickets");
   assert.ok(!ticketsB.body.some((t) => t.id === ticketA.body.id));
-  assert.equal((await buyerB("GET", "/api/licenses")).body.length, 0);
+  assert.equal((await buyerB("GET", "/api/entitlements")).body.length, 0);
 });
 
 test("logout ends the session", async () => {
   const buyer = await signedIn("buyer@acme-health.test");
   assert.equal((await buyer("POST", "/api/auth/logout", {})).status, 200);
   assert.equal((await buyer("GET", "/api/auth/me")).body.user, null);
-  assert.equal((await buyer("GET", "/api/licenses")).status, 401);
+  assert.equal((await buyer("GET", "/api/entitlements")).status, 401);
 });
 
 test("only public frontend files are served", async () => {

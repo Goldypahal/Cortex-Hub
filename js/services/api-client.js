@@ -1,21 +1,12 @@
 /**
  * Cortex Hub - API Client Service
  * Communicates with the Express REST API and PostgreSQL database
- * Includes transparent in-memory fallback if the backend is unreachable.
- * Upgraded to Master SRS v2.0 Multi-Vendor Marketplace Operations.
+ * Live data when signed in with the matching workspace or staff role; otherwise the
+ * in-memory sample data below, which the views label as sample data.
  */
 
 import { CATALOG_COMPONENTS } from "../data/catalog-data.js";
-import {
-  MOCK_TENANT,
-  MOCK_LICENSES,
-  MOCK_API_KEYS,
-  MOCK_CUSTOMIZATION_REQUESTS,
-  MOCK_SUPPORT_TICKETS,
-  MOCK_SELLER,
-  MOCK_MODERATION_QUEUE,
-  MOCK_BUYER_ENTITLEMENTS
-} from "../data/mock-dashboard.js";
+import { MOCK_CUSTOMIZATION_REQUESTS, MOCK_SELLER, MOCK_MODERATION_QUEUE } from "../data/mock-dashboard.js";
 
 // G9 FIX: API base URL reads from environment config, never hardcoded.
 // Set window.CORTEX_API_URL via a server-rendered <script> tag or env injection.
@@ -29,13 +20,152 @@ class ApiClient {
     this.isBackendOnline = false;
     this.memoryComponents = [...CATALOG_COMPONENTS];
     this.memoryRequests = [...MOCK_CUSTOMIZATION_REQUESTS];
-    this.memoryLicenses = [...MOCK_LICENSES];
-    this.memoryApiKeys = [...MOCK_API_KEYS];
-    this.memoryTickets = [...MOCK_SUPPORT_TICKETS];
     this.memorySeller = JSON.parse(JSON.stringify(MOCK_SELLER));
     this.memoryModerationQueue = [...MOCK_MODERATION_QUEUE];
-    this.memoryEntitlements = [...MOCK_BUYER_ENTITLEMENTS];
-    this.platformCommissionRate = 0.15; // 15% platform take-rate
+  }
+
+  // ------------------------------------------------------------------------
+  // Live API plumbing. Portals use live data when the signed-in user has the
+  // matching workspace; otherwise they show the sample data below, labelled as such.
+  // ------------------------------------------------------------------------
+  setCurrentUser(user) {
+    this.currentUser = user || null;
+  }
+
+  hasWorkspace(type) {
+    return Boolean(this.currentUser && this.currentUser.workspaces.some((w) => w.type === type));
+  }
+
+  isStaff() {
+    return Boolean(this.currentUser && ["ADMIN", "SUPERADMIN", "MODERATOR", "SUPPORT", "FINANCE"].includes(this.currentUser.globalRole));
+  }
+
+  async request(method, path, body, headers = {}) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: { ...(body !== undefined && { "Content-Type": "application/json" }), ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.error || `Request failed (${res.status})`);
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  // Buyer portal: everything the customer view needs, in one call
+  async getBuyerPortal() {
+    const [summary, entitlements, apiKeys, tickets, requests, usage] = await Promise.all([
+      this.request("GET", "/buyer/summary"),
+      this.request("GET", "/entitlements"),
+      this.request("GET", "/api-keys"),
+      this.request("GET", "/tickets"),
+      this.request("GET", "/customization-requests"),
+      this.request("GET", "/usage/daily?days=7")
+    ]);
+    return { summary, entitlements, apiKeys, tickets, requests, usage };
+  }
+
+  createApiKeyLive(name, environment) {
+    return this.request("POST", "/api-keys", { name, environment });
+  }
+
+  rotateApiKeyLive(id) {
+    return this.request("POST", `/api-keys/${encodeURIComponent(id)}/rotate`, {});
+  }
+
+  revokeApiKeyLive(id) {
+    return this.request("DELETE", `/api-keys/${encodeURIComponent(id)}`);
+  }
+
+  rotateLicenseKey(entitlementId) {
+    return this.request("POST", `/entitlements/${encodeURIComponent(entitlementId)}/rotate-key`, {});
+  }
+
+  createTicketLive(subject, priority, message) {
+    return this.request("POST", "/tickets", { subject, priority, message });
+  }
+
+  replyToTicket(id, text) {
+    return this.request("POST", `/tickets/${encodeURIComponent(id)}/messages`, { text });
+  }
+
+  // Checkout (INR via Razorpay, or simulated outside production)
+  getCheckoutConfig() {
+    return this.request("GET", "/checkout/config");
+  }
+
+  getProductPrices(slug) {
+    return this.request("GET", `/products/${encodeURIComponent(slug)}/prices`);
+  }
+
+  startCheckout(productSlug, tier, idempotencyKey) {
+    return this.request("POST", "/checkout", { productSlug, tier }, { "Idempotency-Key": idempotencyKey });
+  }
+
+  confirmCheckout(orderId, paymentResult = {}) {
+    return this.request("POST", `/checkout/${encodeURIComponent(orderId)}/confirm`, paymentResult);
+  }
+
+  // Admin
+  getAdminRevenue() {
+    return this.request("GET", "/admin/revenue");
+  }
+
+  setCommissionRate(commissionRate) {
+    return this.request("PUT", "/admin/settings/commission", { commissionRate });
+  }
+
+  setProductPrice(slug, tier, amountInr) {
+    return this.request("PUT", `/admin/products/${encodeURIComponent(slug)}/prices/${encodeURIComponent(tier)}`, { amountInr });
+  }
+
+  getAdminPayouts() {
+    return this.request("GET", "/admin/payouts");
+  }
+
+  updatePayout(id, status) {
+    return this.request("POST", `/admin/payouts/${encodeURIComponent(id)}`, { status });
+  }
+
+  // Sandbox: streams Server-Sent Events from a POST (EventSource only supports GET)
+  getSandboxStatus() {
+    return this.request("GET", "/sandbox/status");
+  }
+
+  async runSandbox(payload, { onText, onDone, onError }) {
+    const res = await fetch(`${API_BASE}/sandbox/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok || !res.body) {
+      const data = await res.json().catch(() => ({}));
+      onError(data.error || `Sandbox request failed (${res.status})`);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const chunk = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const event = /^event: (.*)$/m.exec(chunk)?.[1];
+        const dataLine = /^data: (.*)$/m.exec(chunk)?.[1];
+        if (!event || !dataLine) continue;
+        const data = JSON.parse(dataLine);
+        if (event === "text") onText(data.text);
+        else if (event === "done") onDone(data);
+        else if (event === "error") onError(data.error);
+      }
+    }
   }
 
   async checkHealth() {
@@ -114,10 +244,75 @@ class ApiClient {
   // Multi-Vendor Seller Studio & Submission Wizard (SRS v2.0 Section 12, 24)
   // ------------------------------------------------------------------------
   async getSellerProfile() {
-    return this.memorySeller;
+    if (!this.hasWorkspace("SELLER")) return { ...this.memorySeller, currency: "USD", isSample: true };
+    const d = await this.request("GET", "/seller/dashboard");
+    const major = (minor) => minor / 100;
+    const money = (minor) => new Intl.NumberFormat("en-IN", { style: "currency", currency: d.currency }).format(minor / 100);
+    const conv = d.funnel.productViews ? `${((d.funnel.purchases / d.funnel.productViews) * 100).toFixed(1)}%` : "—";
+    return {
+      isSample: false,
+      currency: d.currency,
+      handle: d.handle,
+      displayName: d.displayName,
+      organization: d.organization,
+      bio: d.bio,
+      verifiedLevel: d.verifiedLevel,
+      kycPassed: d.kycPassed,
+      website: d.website,
+      github: d.github,
+      grossRevenueUsd: major(d.grossMinor),
+      platformFeesPaid: major(d.feesMinor),
+      netEarningsUsd: major(d.grossMinor - d.feesMinor - d.refundsMinor),
+      availableBalance: major(d.availableMinor),
+      pendingBalance: major(d.pendingMinor),
+      platformFeeRate: d.grossMinor ? d.feesMinor / d.grossMinor : 0.15,
+      totalSalesCount: d.totalSalesCount,
+      averageRating: d.averageRating,
+      payoutHoldDays: d.payoutHoldDays,
+      minPayout: major(d.minPayoutMinor),
+      funnelMetrics: {
+        impressions: "—",
+        productViews: d.funnel.productViews.toLocaleString(),
+        demoRuns: d.funnel.demoRuns.toLocaleString(),
+        checkouts: d.funnel.checkouts.toLocaleString(),
+        purchases: d.funnel.purchases.toLocaleString(),
+        conversionRate: conv
+      },
+      products: d.products.map((p) => ({
+        ...p,
+        grossRevenue: money(p.grossMinor),
+        rating: p.rating ?? "—",
+        lastUpdated: String(p.lastUpdated).slice(0, 10)
+      })),
+      payoutHistory: d.payoutHistory.map((p) => ({
+        id: p.id,
+        date: new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        amount: money(p.amountMinor),
+        method: p.method.replace("_", " "),
+        status: p.status,
+        txHash: p.id.slice(0, 8)
+      }))
+    };
   }
 
   async submitSellerProduct(submissionData) {
+    if (this.hasWorkspace("SELLER")) {
+      const res = await this.request("POST", "/seller/products", {
+        name: submissionData.name,
+        version: submissionData.version,
+        category: submissionData.category,
+        productType: submissionData.productType,
+        shortDesc: submissionData.shortDesc,
+        longDesc: submissionData.longDesc,
+        targetBuyer: submissionData.targetBuyer,
+        licenseType: submissionData.licenseType,
+        basePriceInr: Number(submissionData.basePrice),
+        framework: submissionData.framework,
+        hardware: [submissionData.vram, submissionData.gpu, submissionData.cpu].filter(Boolean).join(", "),
+        benchmark: submissionData.accuracy
+      });
+      return { product: res.product, moderation: { id: res.product.id, status: res.product.status } };
+    }
     const slug = (submissionData.name || "custom-engine")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -242,7 +437,11 @@ print("Result:", output)`,
     return { product: newProduct, moderation: modItem };
   }
 
-  async requestSellerPayout(amount, method, destination) {
+  async requestSellerPayout(amount, method) {
+    if (this.hasWorkspace("SELLER")) {
+      const methodKey = /razorpay/i.test(method || "") ? "razorpay" : /stripe/i.test(method || "") ? "stripe_connect" : "bank_transfer";
+      return this.request("POST", "/seller/payouts", { amountMinor: Math.round(Number(amount) * 100), method: methodKey });
+    }
     const amtNum = parseFloat(amount) || 1000;
     if (amtNum > this.memorySeller.availableBalance) {
       throw new Error(`Requested amount ($${amtNum}) exceeds available balance ($${this.memorySeller.availableBalance})`);
@@ -293,10 +492,15 @@ print("Result:", output)`,
   // Admin Operations & Product Moderation Queue (SRS v2.0 Section 13, 31)
   // ------------------------------------------------------------------------
   async getModerationQueue() {
+    if (this.isStaff()) return this.request("GET", "/admin/moderation");
     return this.memoryModerationQueue;
   }
 
   async moderateProduct(modId, action, reason) {
+    if (this.isStaff()) {
+      const res = await this.request("POST", `/admin/moderation/${encodeURIComponent(modId)}`, { action, reason });
+      return res.item;
+    }
     const mod = this.memoryModerationQueue.find((m) => m.id === modId);
     if (!mod) return null;
 
@@ -323,95 +527,32 @@ print("Result:", output)`,
   }
 
   // ------------------------------------------------------------------------
-  // Digital Entitlements & Orders (SRS v2.0 Section 14, 17, 23)
-  // ------------------------------------------------------------------------
-  async getBuyerEntitlements() {
-    return this.memoryEntitlements;
-  }
-
-  async checkoutLicense(componentId, tier, paymentMethod = "Corporate Credit Card") {
-    const comp = this.memoryComponents.find((c) => c.id === componentId);
-    const compName = comp ? comp.name : componentId;
-    const version = comp ? comp.version : "v1.0.0";
-    const priceNum = comp ? comp.basePrice : 499;
-
-    // G2 FIX: CSPRNG for license keys, not Math.random()
-    const licBytes = new Uint8Array(12);
-    crypto.getRandomValues(licBytes);
-    const licHex = Array.from(licBytes).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-    const licenseKey = `LIC-${componentId.toUpperCase().slice(0, 4)}-${licHex.substring(0, 6)}-${licHex.substring(6, 12)}`;
-
-    // Create License record
-    const newLic = {
-      id: `lic_${Date.now()}`,
-      componentId,
-      componentName: compName,
-      version,
-      tier: tier || "Starter",
-      licenseKey,
-      status: "Active",
-      startDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      renewalDate: "Sep 24, 2027",
-      monthlyPrice: `$${priceNum}`,
-      quotaUsed: "0%",
-      rateLimit: "1,000 req/min",
-      env: "Dedicated AWS VPC"
-    };
-    this.memoryLicenses.unshift(newLic);
-
-    // Create Digital Entitlement (Instant Download Link + API Quota)
-    const newEntitlement = {
-      id: `ent-${componentId.slice(0, 4)}-${Math.floor(100 + Math.random() * 900)}`,
-      componentId,
-      componentName: compName,
-      sellerName: comp ? comp.sellerName : "Apex AI Labs",
-      version,
-      tier: tier || "Starter",
-      licenseKey,
-      downloadAllowed: true,
-      downloadUrl: `https://artifacts.cortex-hub.io/signed/${componentId}-${version}-prod.tar.gz?token=exp_${Date.now() + 86400000}`,
-      fileSize: comp ? comp.downloadSize : "850 MB",
-      checksumSha256: comp ? comp.artifactChecksum : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      apiQuota: "500,000 reqs/mo",
-      apiUsed: "0 reqs",
-      purchasedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    };
-    this.memoryEntitlements.unshift(newEntitlement);
-
-    // Update seller earnings ledger
-    const grossSale = priceNum;
-    const fee = grossSale * this.platformCommissionRate;
-    const sellerNet = grossSale - fee;
-    this.memorySeller.grossRevenueUsd += grossSale;
-    this.memorySeller.platformFeesPaid += fee;
-    this.memorySeller.netEarningsUsd += sellerNet;
-    this.memorySeller.availableBalance += sellerNet;
-    this.memorySeller.totalSalesCount += 1;
-
-    return newLic;
-  }
-
-  // ------------------------------------------------------------------------
   // Tenant & API Keys & Customization Requests
   // ------------------------------------------------------------------------
-  async getTenant() {
-    return MOCK_TENANT;
-  }
-
-  async getLicenses() {
-    return this.memoryLicenses;
-  }
-
   async getCustomizationRequests() {
+    if (this.hasWorkspace("BUYER") || this.isStaff()) return this.request("GET", "/customization-requests");
     return this.memoryRequests;
   }
 
   async submitCustomizationRequest(payload) {
+    if (this.hasWorkspace("BUYER")) {
+      return this.request("POST", "/customization-requests", {
+        componentId: payload.componentId,
+        componentName: payload.componentName,
+        scope: payload.scope,
+        industry: payload.industry,
+        deploymentTarget: payload.deploymentTarget,
+        estimatedPrice: payload.estimatedPrice,
+        priceInr: payload.priceInr,
+        targetDelivery: payload.targetDelivery
+      });
+    }
     this.memoryRequests.unshift(payload);
     return payload;
   }
 
   async updateCustomizationRequest(id, updatePayload) {
+    if (this.isStaff()) return this.request("PATCH", `/customization-requests/${encodeURIComponent(id)}`, updatePayload);
     const req = this.memoryRequests.find((r) => r.id === id);
     if (req) {
       if (updatePayload.status) req.status = updatePayload.status;
@@ -429,62 +570,6 @@ print("Result:", output)`,
     return null;
   }
 
-  async getApiKeys() {
-    return this.memoryApiKeys;
-  }
-
-  async createApiKey(name, environment) {
-    // G2 FIX: Use crypto.getRandomValues() (CSPRNG) - never Math.random() for secrets.
-    const randomBytes = new Uint8Array(20);
-    crypto.getRandomValues(randomBytes);
-    const randomHex = Array.from(randomBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-    const envPrefix = environment === "Staging" ? "test" : "live";
-    const rawKey = `ctx_${envPrefix}_${randomHex}`;
-    const maskedKey = `ctx_${envPrefix}_${randomHex.substring(0, 6)}[REDACTED]`;
-
-    const newKey = {
-      id: `key-${randomHex.substring(0, 8)}`,
-      name: name || "Production Cluster Key",
-      prefix: maskedKey,
-      rawKey, // shown ONCE to user, never retrievable again after creation
-      environment: environment || "Production",
-      status: "Active",
-      calls30d: "0",
-      lastUsed: "Just now"
-    };
-    this.memoryApiKeys.unshift(newKey);
-    return newKey;
-  }
-
-    async revokeApiKey(id) {
-    const k = this.memoryApiKeys.find((item) => item.id === id);
-    if (k) k.status = "Revoked";
-    return true;
-  }
-
-  async getTickets() {
-    return this.memoryTickets;
-  }
-
-  async createTicket(payload) {
-    const newTicket = {
-      id: `TCK-${Math.floor(1000 + Math.random() * 9000)}`,
-      subject: payload.subject,
-      priority: payload.priority || "Medium",
-      status: "Open",
-      lastActivity: "Just now",
-      messages: [
-        {
-          sender: "Customer",
-          time: "Just now",
-          text: payload.message || "Ticket logged."
-        }
-      ]
-    };
-    this.memoryTickets.unshift(newTicket);
-    return newTicket;
-  }
-
   // ------------------------------------------------------------------------
   // Twilio Integration (SRS §2.3, ADM-06)
   // ------------------------------------------------------------------------
@@ -495,13 +580,7 @@ print("Result:", output)`,
     } catch {
       // Fallback
     }
-    return {
-      configured: true,
-      status: "ACTIVE",
-      type: "Trial",
-      balance: "$15.28 USD",
-      whatsappNumber: "whatsapp:+14155238886"
-    };
+    return { configured: false, status: "UNAVAILABLE", message: "Could not reach the API or not signed in as staff" };
   }
 
   async sendTwilioNotification({ to, message, channel = "whatsapp" }) {

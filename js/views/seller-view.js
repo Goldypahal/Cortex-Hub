@@ -4,7 +4,7 @@
  * 20 (Wallet & Payouts), and 24 (Seller Dashboard).
  */
 
-import { getIconSvg, showToast } from "../utils/helpers.js";
+import { escapeHtml, getIconSvg, showToast } from "../utils/helpers.js";
 
 export class SellerView {
   constructor(app) {
@@ -36,30 +36,41 @@ export class SellerView {
     };
   }
 
+  money(amount, currency = "USD") {
+    return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount || 0);
+  }
+
   async render(container) {
-    const seller = await this.app.api.getSellerProfile();
+    this.container = container;
+    let seller;
+    try {
+      seller = await this.app.api.getSellerProfile();
+    } catch (err) {
+      container.innerHTML = `<p style="padding: 40px 0; color: var(--status-error);">Could not load Seller Studio: ${escapeHtml(err.message)}</p>`;
+      return;
+    }
 
     container.innerHTML = `
       <!-- Seller Studio Header Banner -->
       <section class="seller-studio-header">
         <div class="seller-header-left">
           <div class="seller-avatar-badge">
-            <span class="seller-monogram">AP</span>
+            <span class="seller-monogram">${escapeHtml(seller.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase())}</span>
             <span class="seller-verified-pip" title="Verified Tier-1 Seller">${getIconSvg("check", 12)}</span>
           </div>
           <div class="seller-meta">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <h2 class="seller-name">${seller.displayName}</h2>
-              <span class="badge badge-lime">${seller.verifiedLevel}</span>
-              <span class="badge badge-gray">TIER-1 VENDOR</span>
+              <h2 class="seller-name">${escapeHtml(seller.displayName)}</h2>
+              <span class="badge badge-lime">${escapeHtml(seller.verifiedLevel)}</span>
+              ${seller.isSample ? `<span class="badge badge-amber">SAMPLE DATA</span>` : ""}
             </div>
-            <p class="seller-bio">${seller.bio}</p>
+            <p class="seller-bio">${seller.isSample ? "Sample seller profile. Sign in with a seller account to see your own products, sales and payouts." : escapeHtml(seller.bio || "")}</p>
             <div class="seller-subline">
-              <span>Handle: <strong>@${seller.handle}</strong></span>
+              <span>Handle: <strong>@${escapeHtml(seller.handle)}</strong></span>
               <span class="ticker-divider">/</span>
               <span>Total Sales: <strong>${seller.totalSalesCount} units</strong></span>
               <span class="ticker-divider">/</span>
-              <span>Rating: <strong>★ ${seller.averageRating}</strong></span>
+              <span>Rating: <strong>★ ${escapeHtml(seller.averageRating)}</strong></span>
               <span class="ticker-divider">/</span>
               <span>Platform Take-Rate: <strong>${Math.round(seller.platformFeeRate * 100)}%</strong></span>
             </div>
@@ -69,12 +80,12 @@ export class SellerView {
         <div class="seller-header-stats">
           <div class="seller-stat-card">
             <span class="stat-label">GROSS REVENUE</span>
-            <span class="stat-value text-accent">$${seller.grossRevenueUsd.toLocaleString()}</span>
+            <span class="stat-value text-accent">${this.money(seller.grossRevenueUsd, seller.currency)}</span>
             <span class="stat-sub">Lifetime Component Sales</span>
           </div>
           <div class="seller-stat-card">
             <span class="stat-label">AVAILABLE PAYOUT</span>
-            <span class="stat-value" style="color: var(--accent-cyan);">$${seller.availableBalance.toLocaleString()}</span>
+            <span class="stat-value" style="color: var(--accent-cyan);">${this.money(seller.availableBalance, seller.currency)}</span>
             <button class="btn btn-secondary btn-sm" id="btn-request-payout-header" style="margin-top: 6px;">
               Request Payout →
             </button>
@@ -516,12 +527,12 @@ print("Cluster Telemetry:", health.status)</textarea>
       return `
         <div class="form-row">
           <div class="form-group flex-1">
-            <label class="form-label">Base Single-License Price (USD) *</label>
+            <label class="form-label">Base Single-License Price (INR, ₹) *</label>
             <input type="number" class="text-input" id="wiz-price" value="${this.wizardData.basePrice}" placeholder="499" />
           </div>
           <div class="form-group flex-1">
             <label class="form-label">Platform Take-Rate (Admin Config)</label>
-            <input type="text" class="text-input" value="15% Platform Fee (Net: $${Math.round((parseInt(this.wizardData.basePrice) || 499) * 0.85)})" disabled />
+            <input type="text" class="text-input" value="Platform fee set by admin (15% default). Buyers also pay 18% GST." disabled />
           </div>
         </div>
 
@@ -530,12 +541,12 @@ print("Cluster Telemetry:", health.status)</textarea>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 6px;">
             <div style="background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px;">
               <span class="badge badge-gray">STARTER</span>
-              <div style="font-size: 1.1rem; font-weight: 700; color: #FFF; margin: 4px 0;">$${this.wizardData.basePrice}</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: #FFF; margin: 4px 0;">₹${escapeHtml(this.wizardData.basePrice)}</div>
               <p style="font-size: 0.75rem; color: var(--text-muted);">Standard developer license</p>
             </div>
             <div style="background: var(--bg-surface-2); border: 1px solid var(--accent-lime); border-radius: 6px; padding: 12px;">
               <span class="badge badge-lime">PRO TIER</span>
-              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-lime); margin: 4px 0;">$${Math.round((parseInt(this.wizardData.basePrice) || 499) * 2.5)}</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-lime); margin: 4px 0;">₹${Math.round((parseInt(this.wizardData.basePrice) || 499) * 2.5)}</div>
               <p style="font-size: 0.75rem; color: var(--text-muted);">Team license &amp; priority SLA</p>
             </div>
             <div style="background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px;">
@@ -582,7 +593,7 @@ print("Cluster Telemetry:", health.status)</textarea>
               </h4>
             </div>
             <div style="text-align: right;">
-              <span style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--accent-lime);">$${this.wizardData.basePrice || "499"} USD</span>
+              <span style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--accent-lime);">₹${escapeHtml(this.wizardData.basePrice || "499")}</span>
               <div style="font-size: 0.75rem; color: var(--text-muted);">${this.wizardData.version}</div>
             </div>
           </div>
@@ -641,15 +652,12 @@ print("Cluster Telemetry:", health.status)</textarea>
 
         try {
           const res = await this.app.api.submitSellerProduct(this.wizardData);
-          showToast(`Component "${this.wizardData.name || "DevOps MCP Bridge"}" submitted for Admin Review!`, "success");
+          showToast(`"${res.product.name}" submitted for review${seller.isSample ? " (sample mode, not saved)" : ""}.`, "success");
 
-          // Reset wizard and switch to portfolio tab
+          // Reset wizard and show the portfolio with the new product
           this.submissionStep = 1;
           this.activeTab = "portfolio";
-          this.renderActiveTab(seller);
-          document.querySelectorAll(".seller-tab-btn").forEach((b) => {
-            b.classList.toggle("active", b.dataset.tab === "portfolio");
-          });
+          await this.render(this.container);
         } catch (err) {
           showToast(`Submission failed: ${err.message}`, "error");
           submitBtn.disabled = false;
@@ -715,22 +723,22 @@ print("Cluster Telemetry:", health.status)</textarea>
       <div class="wallet-ledger-grid">
         <div class="seller-stat-card" style="border-left: 3px solid var(--accent-lime);">
           <span class="stat-label">GROSS SALES VOLUME</span>
-          <span class="stat-value text-accent">$${seller.grossRevenueUsd.toLocaleString()}</span>
+          <span class="stat-value text-accent">${this.money(seller.grossRevenueUsd, seller.currency)}</span>
           <span class="stat-sub">From ${seller.totalSalesCount} units sold</span>
         </div>
         <div class="seller-stat-card" style="border-left: 3px solid var(--accent-amber);">
           <span class="stat-label">PLATFORM COMMISSION</span>
-          <span class="stat-value" style="color: var(--accent-amber);">$${seller.platformFeesPaid.toLocaleString()}</span>
+          <span class="stat-value" style="color: var(--accent-amber);">${this.money(seller.platformFeesPaid, seller.currency)}</span>
           <span class="stat-sub">15% Take-Rate Retained</span>
         </div>
         <div class="seller-stat-card" style="border-left: 3px solid var(--accent-cyan);">
           <span class="stat-label">NET SELLER EARNINGS</span>
-          <span class="stat-value" style="color: var(--accent-cyan);">$${seller.netEarningsUsd.toLocaleString()}</span>
+          <span class="stat-value" style="color: var(--accent-cyan);">${this.money(seller.netEarningsUsd, seller.currency)}</span>
           <span class="stat-sub">85% Net Disbursed</span>
         </div>
         <div class="seller-stat-card" style="border-left: 3px solid #FFF;">
           <span class="stat-label">AVAILABLE FOR PAYOUT</span>
-          <span class="stat-value" style="color: #FFF;">$${seller.availableBalance.toLocaleString()}</span>
+          <span class="stat-value" style="color: #FFF;">${this.money(seller.availableBalance, seller.currency)}</span>
           <button class="btn btn-primary btn-sm" id="btn-request-payout-tab" style="margin-top: 8px;">
             Request Payout →
           </button>
@@ -865,28 +873,32 @@ print("Cluster Telemetry:", health.status)</textarea>
           <div style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
             <div style="font-size: 0.8rem; color: var(--text-muted);">Available Net Balance</div>
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-lime); font-family: var(--font-heading);">
-              $${seller.availableBalance.toLocaleString()} USD
+              ${this.money(seller.availableBalance, seller.currency)}
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Payout Amount (USD) *</label>
-            <input type="number" class="text-input" id="payout-amount-input" value="${Math.min(seller.availableBalance, 5000)}" max="${seller.availableBalance}" />
+            <label class="form-label">Payout Amount (${escapeHtml(seller.currency)}) *</label>
+            <input type="number" class="text-input" id="payout-amount-input" value="${Math.floor(seller.availableBalance)}" max="${seller.availableBalance}" />
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
+              Sales become available ${escapeHtml(seller.payoutHoldDays || 7)} days after purchase${seller.minPayout ? `; minimum payout ${this.money(seller.minPayout, seller.currency)}` : ""}.
+              ${seller.kycPassed === false ? "<strong>Identity and bank verification (KYC) must be completed before payouts.</strong>" : ""}
+              Requests are reviewed and paid by the finance team.
+            </p>
           </div>
 
           <div class="form-group">
             <label class="form-label">Payout Destination Method</label>
             <select class="select-input" id="payout-method-select">
-              <option value="Stripe Connect / ACH">Stripe Connect Direct (Chase **** 8842)</option>
-              <option value="International Wire">International Wire SWIFT (Citibank)</option>
-              <option value="USDC Polygon">USDC (Polygon POS: 0x71A...9b2)</option>
+              <option value="bank_transfer">Bank transfer (account on file)</option>
+              <option value="razorpay">RazorpayX payout</option>
             </select>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary modal-close-btn">Cancel</button>
           <button class="btn btn-primary" id="btn-confirm-payout-submit">
-            Confirm &amp; Disburse Payout
+            Request payout
           </button>
         </div>
       </div>
@@ -905,9 +917,9 @@ print("Cluster Telemetry:", health.status)</textarea>
 
         try {
           await this.app.api.requestSellerPayout(amt, method);
-          showToast(`Payout request for $${amt} submitted and processing!`, "success");
+          showToast(`Payout request for ${this.money(Number(amt), seller.currency)} submitted.`, "success");
           modal.classList.remove("active");
-          this.renderActiveTab(seller);
+          await this.render(this.container);
         } catch (err) {
           showToast(err.message, "error");
         }

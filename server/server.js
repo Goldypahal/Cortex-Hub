@@ -8,15 +8,21 @@
  * LegacyLicense, ...) until Phase 1 moves them to Product / Entitlement.
  */
 
+// Must be the first import: modules below read process.env when they load
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import path from "path";
 import { randomBytes, randomUUID } from "crypto";
 import { fileURLToPath, pathToFileURL } from "url";
-import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { getTwilioStatus, sendTwilioMessage } from "./services/twilio.js";
+import { IS_PRODUCTION, ah, audit, formatMoney, prisma, shortId, tenantForWorkspace, validate } from "./lib/common.js";
+import { razorpayWebhookHandler, registerCommerceRoutes } from "./routes/commerce.js";
+import { registerSellerRoutes } from "./routes/seller.js";
+import { registerAdminRoutes } from "./routes/admin.js";
+import { registerBuyerRoutes } from "./routes/buyer.js";
+import { registerSandboxRoutes } from "./routes/sandbox.js";
 import {
   PLATFORM_ADMIN_ROLES,
   PLATFORM_STAFF_ROLES,
@@ -29,6 +35,7 @@ import {
   isLoginThrottled,
   isPlatformRole,
   loadSession,
+  needsRehash,
   publicUser,
   recordLoginFailure,
   requireAuth,
@@ -38,17 +45,13 @@ import {
   verifyPassword
 } from "./auth.js";
 
-dotenv.config();
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 export const app = express();
-export const prisma = new PrismaClient();
+export { prisma };
 const PORT = process.env.PORT || 5000;
 
-// Async route wrapper: forwards rejections to the error handler below
-const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // G3 FIX: Restrict CORS to allow-list only. Never use open cors() in production.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5000,http://localhost:3000")
@@ -78,7 +81,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "100kb" }));
+// Bodies: the Razorpay webhook needs the raw bytes and the sandbox accepts documents,
+// so both bring their own parsers; everything else is small JSON.
+const RAW_OR_LARGE_BODY_PATHS = ["/api/webhooks/razorpay", "/api/sandbox/run"];
+const smallJson = express.json({ limit: "100kb" });
+app.use((req, res, next) => (RAW_OR_LARGE_BODY_PATHS.includes(req.path) ? next() : smallJson(req, res, next)));
 
 // CSRF defence: state-changing API calls must be JSON (cross-site HTML forms cannot send it),
 // on top of SameSite=Lax session cookies and the CORS allow-list.
@@ -91,67 +98,11 @@ app.use("/api", (req, res, next) => {
 
 app.use(loadSession(prisma));
 
+app.post("/api/webhooks/razorpay", ...razorpayWebhookHandler());
+
 // --------------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------------
-function validate(schema, data, req, res) {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    res.status(400).json({
-      error: "Invalid request",
-      issues: result.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-      requestId: req.requestId
-    });
-    return null;
-  }
-  return result.data;
-}
-
-async function audit(req, action, { workspaceId = null, resourceId = null, before = null, after = null } = {}) {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        workspaceId,
-        actorId: req.user ? req.user.id : null,
-        action,
-        resourceId,
-        before: before ?? undefined,
-        after: after ?? undefined,
-        ipAddress: req.ip,
-        requestId: req.requestId
-      }
-    });
-  } catch (err) {
-    console.error(`[audit] failed to record ${action} (${req.requestId}):`, err.message);
-  }
-}
-
-// Legacy tables are keyed by Tenant; each buyer Workspace maps to the Tenant with the same slug.
-async function tenantForWorkspace(workspace) {
-  return prisma.tenant.upsert({
-    where: { slug: workspace.slug },
-    update: {},
-    create: { slug: workspace.slug, name: workspace.name }
-  });
-}
-
-function shortId(prefix) {
-  return `${prefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
-}
-
-function newLicenseKey(componentId) {
-  const hex = randomBytes(12).toString("hex").toUpperCase();
-  return `LIC-${componentId.toUpperCase().slice(0, 4)}-${hex.substring(0, 6)}-${hex.substring(6, 12)}`;
-}
-
-// Payments are not integrated yet (SRS BILL-02, BILL-05): simulated checkouts are refused in production.
-function blockSimulatedCheckoutInProduction(req, res, next) {
-  if (IS_PRODUCTION) {
-    return res.status(501).json({ error: "Payments are not enabled yet", requestId: req.requestId });
-  }
-  next();
-}
-
 const apiKeyPublicFields = {
   id: true,
   tenantId: true,
@@ -258,6 +209,9 @@ app.post(
     }
 
     clearLoginFailures(throttleKey);
+    if (needsRehash(user.passwordHash)) {
+      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(body.password) } });
+    }
     await createSession(prisma, res, user, req);
     req.user = user;
     await audit(req, "user.login", { resourceId: user.id });
@@ -303,6 +257,42 @@ const componentSchema = z.object({
   published: z.boolean().optional()
 });
 
+function productAsCatalogEntry(p) {
+  const tiers = p.prices.map((pr) => ({
+    name: pr.name,
+    price: pr.model === "CUSTOM" ? "Custom" : formatMoney(pr.amountMinor, pr.currency).replace(/\.00$/, ""),
+    desc: pr.model === "ONE_TIME" ? "One-time licence" : "Per month",
+    features: []
+  }));
+  const first = tiers[0]?.price || "—";
+  return {
+    id: p.slug,
+    name: p.name,
+    category: p.businessCategory || "AI Component",
+    categoryBadge: "badge-indigo",
+    productType: p.productType,
+    version: p.versions[0] ? `v${p.versions[0].version}` : "v1.0.0",
+    shortDesc: p.shortDesc,
+    longDesc: p.longDesc,
+    coreOutput: p.shortDesc,
+    targetBuyer: p.prerequisites || "",
+    basePrice: null,
+    priceFormatted: first,
+    inrPriceFormatted: first,
+    tags: p.tags,
+    features: p.features,
+    pricingTiers: tiers,
+    architecture: [],
+    codeSnippets: null,
+    benchmarks: p.benchmarks?.sellerReported ? { accuracy: `${p.benchmarks.sellerReported} (seller-reported)` } : null,
+    sellerName: p.seller.displayName,
+    verificationStatus: p.verificationStatus,
+    rating: p.ratingCount ? p.rating : null,
+    ratingCount: p.ratingCount,
+    published: true
+  };
+}
+
 app.get(
   "/api/components",
   ah(async (req, res) => {
@@ -311,7 +301,13 @@ app.get(
       where: isAdmin ? {} : { published: true },
       orderBy: { basePrice: "asc" }
     });
-    res.json(components);
+    // Approved seller products that have no curated catalog entry yet
+    const sellerProducts = await prisma.product.findMany({
+      where: { status: "PUBLISHED", slug: { notIn: components.map((c) => c.id) } },
+      include: { seller: true, prices: { where: { isActive: true }, orderBy: { amountMinor: "asc" } }, versions: { where: { isLatest: true }, take: 1 } },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json([...components, ...sellerProducts.map(productAsCatalogEntry)]);
   })
 );
 
@@ -381,8 +377,11 @@ const customizationUpdateSchema = z.object({
   status: z.enum(["Submitted", "Under Review", "Quoted", "In Progress", "Delivered"]).optional(),
   statusStep: z.number().int().min(1).max(5).optional(),
   timelineEvent: z.string().max(500).optional(),
-  estimatedPrice: z.string().max(50).optional()
+  estimatedPrice: z.string().max(50).optional(),
+  scope: z.string().trim().max(2000).optional()
 });
+
+const STATUS_STEPS = { Submitted: 1, "Under Review": 2, Quoted: 3, "In Progress": 4, Delivered: 5 };
 
 app.get(
   "/api/customization-requests",
@@ -453,9 +452,10 @@ app.patch(
     const updated = await prisma.legacyCustomizationRequest.update({
       where: { id: req.params.id },
       data: {
-        ...(body.status && { status: body.status }),
-        ...(body.statusStep && { statusStep: body.statusStep }),
+        ...(body.status && { status: body.status, statusStep: body.statusStep || STATUS_STEPS[body.status] }),
+        ...(!body.status && body.statusStep && { statusStep: body.statusStep }),
         ...(body.estimatedPrice && { estimatedPrice: body.estimatedPrice }),
+        ...(body.scope && { scope: body.scope }),
         timelineLog: updatedLogs
       }
     });
@@ -481,58 +481,6 @@ app.get(
       }
     });
     res.json({ ...full, monthlyTokenQuota: full.monthlyTokenQuota.toString() });
-  })
-);
-
-app.get(
-  "/api/licenses",
-  requireWorkspace("BUYER"),
-  ah(async (req, res) => {
-    const tenant = await tenantForWorkspace(req.workspace);
-    const licenses = await prisma.legacyLicense.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { createdAt: "desc" }
-    });
-    res.json(licenses);
-  })
-);
-
-app.post(
-  "/api/licenses/checkout",
-  requireWorkspace("BUYER"),
-  blockSimulatedCheckoutInProduction,
-  ah(async (req, res) => {
-    const body = validate(
-      z.object({ componentId: z.string().min(1).max(64), tier: z.string().max(50).default("Starter") }),
-      req.body,
-      req,
-      res
-    );
-    if (!body) return;
-    const component = await prisma.component.findUnique({ where: { id: body.componentId } });
-    if (!component || !component.published) {
-      return res.status(404).json({ error: "Component not found", requestId: req.requestId });
-    }
-
-    const tenant = await tenantForWorkspace(req.workspace);
-    const createdLicense = await prisma.legacyLicense.create({
-      data: {
-        tenantId: tenant.id,
-        componentId: component.id,
-        tier: body.tier,
-        licenseKey: newLicenseKey(component.id),
-        status: "ACTIVE",
-        clusterTarget: "Dedicated VPC (AWS us-east-1)",
-        rateLimit: "1,000 req/min"
-      }
-    });
-    await audit(req, "license.created", { workspaceId: req.workspace.id, resourceId: createdLicense.id });
-    res.status(201).json({
-      success: true,
-      simulatedPayment: true,
-      license: createdLicense,
-      message: "License provisioned (simulated checkout, no payment taken)"
-    });
   })
 );
 
@@ -671,182 +619,44 @@ app.post(
 );
 
 // --------------------------------------------------------------------------
-// Revenue BI (platform finance/admin only; figures are sample data until billing exists)
+// Commerce, seller, admin, buyer and sandbox modules (all persisted in Postgres)
 // --------------------------------------------------------------------------
-app.get("/api/analytics/revenue", requirePlatformRole("FINANCE", ...PLATFORM_ADMIN_ROLES), (req, res) => {
-  res.json({
-    dataSource: "sample",
-    mrrFormatted: "$64,280",
-    annualRunRate: "$771,360",
-    netExpansion: "+14.8%",
-    churnRate: "0.8%",
-    activeTenants: 48,
-    breakdown: [
-      { stream: "Component Licenses (Fixed)", mrr: "$38,400", pct: 60 },
-      { stream: "BOM Customization Sprints", mrr: "$16,280", pct: 25 },
-      { stream: "Enterprise VPC SLAs & Support", mrr: "$9,600", pct: 15 }
-    ]
-  });
-});
-
-// --------------------------------------------------------------------------
-// Multi-Vendor Marketplace Routes (SRS v2.0 Section 12, 14, 18, 20, 31)
-// NOTE: still held in process memory (G4) until Phase 1 persists them in
-// ModerationRecord / Order / Entitlement.
-// --------------------------------------------------------------------------
-const dynamicModerationQueue = [
-  {
-    id: "MOD-301",
-    productId: "mcp-server-dev",
-    productName: "Autonomous DevOps MCP Bridge",
-    productType: "MCP_SERVER",
-    category: "Developer Tools",
-    sellerName: "Apex AI Labs",
-    sellerHandle: "@apex-ai",
-    price: "$399",
-    submittedDate: "2026-09-21",
-    status: "UNDER_REVIEW",
-    checklist: {
-      malwareScan: "PENDING (automated scanning not yet implemented)",
-      licenseCompliance: "PENDING (manual review)",
-      documentation: "PENDING (manual review)",
-      sandboxIntegrity: "PENDING (automated scanning not yet implemented)"
-    },
-    specs: "Dockerized Model Context Protocol server exposing Kubernetes telemetry & Helm deploy tooling to LLM agents."
-  }
-];
-
-const dynamicEntitlements = [];
+registerCommerceRoutes(app);
+registerSellerRoutes(app);
+registerAdminRoutes(app);
+registerBuyerRoutes(app);
+registerSandboxRoutes(app);
 
 // Public seller profile: no financial fields
-app.get("/api/sellers/:handle", (req, res) => {
-  res.json({
-    dataSource: "sample",
-    handle: req.params.handle,
-    displayName: "Apex AI Labs",
-    verifiedLevel: "VERIFIED",
-    totalSales: 86
-  });
-});
-
-app.post("/api/products/submit", requireWorkspace("SELLER"), (req, res) => {
-  const body = validate(
-    z.object({
-      id: z.string().max(64).optional(),
-      name: z.string().trim().min(1).max(200),
-      productType: z.string().max(40).default("AI_AGENT"),
-      category: z.string().max(100).default("Generative AI"),
-      basePrice: z.number().nonnegative().default(499),
-      licenseType: z.string().max(100).optional(),
-      shortDesc: z.string().max(500).default("Production AI component")
-    }),
-    req.body,
-    req,
-    res
-  );
-  if (!body) return;
-
-  const modRecord = {
-    id: shortId("MOD"),
-    productId: body.id || `prod-${Date.now()}`,
-    productName: body.name,
-    productType: body.productType,
-    category: body.category,
-    sellerName: req.workspace.name,
-    sellerHandle: `@${req.workspace.slug}`,
-    sellerWorkspaceId: req.workspace.id,
-    price: `$${body.basePrice}`,
-    submittedDate: new Date().toISOString().split("T")[0],
-    status: "UNDER_REVIEW",
-    checklist: {
-      malwareScan: "PENDING (automated scanning not yet implemented)",
-      licenseCompliance: `PENDING (${body.licenseType || "license"} needs manual review)`,
-      documentation: "PENDING (manual review)",
-      sandboxIntegrity: "PENDING (automated scanning not yet implemented)"
-    },
-    specs: body.shortDesc
-  };
-  dynamicModerationQueue.unshift(modRecord);
-  res.status(201).json({ success: true, moderation: modRecord });
-});
-
-app.get("/api/moderation/queue", requirePlatformRole("MODERATOR", ...PLATFORM_ADMIN_ROLES), (req, res) => {
-  res.json(dynamicModerationQueue);
-});
-
-app.post(
-  "/api/moderation/:id",
-  requirePlatformRole("MODERATOR", ...PLATFORM_ADMIN_ROLES),
+app.get(
+  "/api/sellers/:handle",
   ah(async (req, res) => {
-    const body = validate(
-      z.object({ action: z.enum(["APPROVE", "REJECT"]), reason: z.string().max(1000).optional() }),
-      req.body,
-      req,
-      res
-    );
-    if (!body) return;
-    const item = dynamicModerationQueue.find((m) => m.id === req.params.id);
-    if (!item) return res.status(404).json({ error: "Moderation record not found", requestId: req.requestId });
-
-    item.status = body.action === "APPROVE" ? "APPROVED" : "REJECTED";
-    item.resolutionReason =
-      body.reason || (body.action === "APPROVE" ? "Verified and published to catalog" : "Revision requested");
-    await audit(req, `moderation.${body.action.toLowerCase()}`, { resourceId: item.id });
-    res.json({ success: true, item });
+    const profile = await prisma.sellerProfile.findUnique({
+      where: { handle: req.params.handle },
+      include: { products: { where: { status: "PUBLISHED" }, select: { slug: true, name: true } } }
+    });
+    if (!profile) return res.status(404).json({ error: "Seller not found", requestId: req.requestId });
+    res.json({
+      handle: profile.handle,
+      displayName: profile.displayName,
+      bio: profile.bio,
+      website: profile.website,
+      verifiedLevel: profile.verifiedLevel,
+      totalSales: profile.totalSalesCount,
+      products: profile.products
+    });
   })
 );
-
-app.get("/api/entitlements", requireWorkspace("BUYER"), (req, res) => {
-  res.json(dynamicEntitlements.filter((e) => e.workspaceId === req.workspace.id));
-});
-
-app.post("/api/orders/checkout", requireWorkspace("BUYER"), blockSimulatedCheckoutInProduction, (req, res) => {
-  const body = validate(
-    z.object({
-      componentId: z.string().min(1).max(64),
-      tier: z.string().max(50).default("Starter"),
-      price: z.coerce.number().int().nonnegative().default(499)
-    }),
-    req.body,
-    req,
-    res
-  );
-  if (!body) return;
-
-  const licenseKey = newLicenseKey(body.componentId);
-  const entitlement = {
-    id: `ent-${randomBytes(6).toString("hex")}`,
-    workspaceId: req.workspace.id,
-    componentId: body.componentId,
-    tier: body.tier,
-    licenseKey,
-    downloadAllowed: true,
-    apiQuota: "1,000,000 reqs/mo",
-    status: "ACTIVE",
-    createdAt: new Date().toISOString()
-  };
-  dynamicEntitlements.unshift(entitlement);
-
-  res.status(201).json({
-    success: true,
-    simulatedPayment: true,
-    licenseKey,
-    entitlement,
-    platformFee: body.price * 0.15,
-    sellerNet: body.price * 0.85
-  });
-});
-
 
 // --------------------------------------------------------------------------
 // Twilio Communications & WhatsApp Assistant (SRS §2.3, ADM-06)
 // --------------------------------------------------------------------------
-app.get("/api/twilio/status", ah(async (req, res) => {
+app.get("/api/twilio/status", requirePlatformRole(...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
   const status = await getTwilioStatus();
   res.json(status);
 }));
 
-app.post("/api/notifications/whatsapp", ah(async (req, res) => {
+app.post("/api/notifications/whatsapp", requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
   const body = validate(
     z.object({
       to: z.string().min(8),
@@ -875,7 +685,7 @@ app.post("/api/notifications/whatsapp", ah(async (req, res) => {
   }
 }));
 
-app.post("/api/notifications/sms", ah(async (req, res) => {
+app.post("/api/notifications/sms", requirePlatformRole("SUPPORT", ...PLATFORM_ADMIN_ROLES), ah(async (req, res) => {
   const body = validate(
     z.object({
       to: z.string().min(8),

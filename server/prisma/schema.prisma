@@ -72,6 +72,7 @@ enum ProductType {
   WORKFLOW
   DATASET
   CUSTOM_SERVICE
+  PROMPT_PACK
 }
 
 enum ProductStatus {
@@ -118,48 +119,48 @@ enum ScanStatus {
 /// Workspace is the unit of tenancy and billing (buyer org or seller org).
 /// Replaces the old Tenant model.
 model Workspace {
-  id          String        @id @default(uuid())
-  type        WorkspaceType
-  name        String
-  slug        String        @unique
-  plan        String        @default("FREE") // FREE, STARTER, PRO, ENTERPRISE
-  logoUrl     String?
-  website     String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id        String        @id @default(uuid())
+  type      WorkspaceType
+  name      String
+  slug      String        @unique
+  plan      String        @default("FREE") // FREE, STARTER, PRO, ENTERPRISE
+  logoUrl   String?
+  website   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  members     Membership[]
-  invites     Invite[]
-  products    Product[]     // seller workspaces list their products here
-  orders      Order[]       // buyer workspaces track orders here
-  apiKeys     WorkspaceApiKey[]
-  usageEvents UsageEvent[]
-  wallet      WalletLedger[]
-  payouts     Payout[]
-  auditLogs   AuditLog[]
+  members       Membership[]
+  invites       Invite[]
+  products      Product[] // seller workspaces list their products here
+  orders        Order[] // buyer workspaces track orders here
+  apiKeys       WorkspaceApiKey[]
+  usageEvents   UsageEvent[]
+  wallet        WalletLedger[]
+  payouts       Payout[]
+  auditLogs     AuditLog[]
   notifications Notification[]
-  webhooks    Webhook[]
+  webhooks      Webhook[]
 
   @@index([type])
   @@map("workspaces")
 }
 
 model User {
-  id            String      @id @default(uuid())
-  email         String      @unique
-  passwordHash  String?     // null for OAuth-only users
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String? // null for OAuth-only users
   name          String
   avatarUrl     String?
-  globalRole    UserRole    @default(BUYER)
-  status        String      @default("ACTIVE") // ACTIVE, SUSPENDED, BANNED
-  emailVerified Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  globalRole    UserRole @default(BUYER)
+  status        String   @default("ACTIVE") // ACTIVE, SUSPENDED, BANNED
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  memberships   Membership[]
-  sessions      Session[]
-  reviews       Review[]
-  auditLogs     AuditLog[]
+  memberships Membership[]
+  sessions    Session[]
+  reviews     Review[]
+  auditLogs   AuditLog[]
 
   @@map("users")
 }
@@ -171,8 +172,8 @@ model Membership {
   role        WorkspaceRole @default(MEMBER)
   joinedAt    DateTime      @default(now())
 
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workspaceId])
   @@index([workspaceId])
@@ -180,32 +181,32 @@ model Membership {
 }
 
 model Session {
-  id           String   @id @default(uuid())
-  userId       String
-  tokenHash    String   @unique // SHA-256 of the session token
-  expiresAt    DateTime
-  deviceInfo   String?  // user-agent summary
-  ipAddress    String?
-  revokedAt    DateTime?
-  createdAt    DateTime @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique // SHA-256 of the session token
+  expiresAt  DateTime
+  deviceInfo String? // user-agent summary
+  ipAddress  String?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("sessions")
 }
 
 model Invite {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   workspaceId String
   email       String
   role        WorkspaceRole @default(MEMBER)
-  tokenHash   String   @unique
+  tokenHash   String        @unique
   expiresAt   DateTime // 7 days per SRS AUTH-06
   acceptedAt  DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime      @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("invites")
@@ -232,7 +233,7 @@ model SellerProfile {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  products        Product[]
+  products Product[]
 
   @@map("seller_profiles")
 }
@@ -243,53 +244,53 @@ model SellerProfile {
 // ============================================================================
 
 model Product {
-  id                  String            @id @default(uuid())
-  workspaceId         String            // seller workspace
-  sellerId            String
-  name                String
-  slug                String            @unique
-  shortDesc           String
-  longDesc            String
-  businessCategory    String?           // business outcome category (SRS 8.1)
-  technicalCategory   String?           // tech taxonomy (SRS 8.2)
-  productType         ProductType       @default(RAG_SYSTEM)
-  status              ProductStatus     @default(DRAFT)
-  verificationStatus  VerificationLevel @default(UNVERIFIED)
-  licenseType         String            @default("Commercial Permissive")
-  tags                String[]
-  features            String[]
-  channels            String[]          // Website, WhatsApp, Slack, etc.
-  setupComplexity     String?           // "Instant (<5 min)", "Easy (<15 min)"
-  prerequisites       String?           // plain-English prerequisites for buyers
-  hardwareReqs        Json?
-  benchmarks          Json?
-  architecture        Json?
-  codeSnippets        Json?
+  id                 String            @id @default(uuid())
+  workspaceId        String // seller workspace
+  sellerId           String
+  name               String
+  slug               String            @unique
+  shortDesc          String
+  longDesc           String
+  businessCategory   String? // business outcome category (SRS 8.1)
+  technicalCategory  String? // tech taxonomy (SRS 8.2)
+  productType        ProductType       @default(RAG_SYSTEM)
+  status             ProductStatus     @default(DRAFT)
+  verificationStatus VerificationLevel @default(UNVERIFIED)
+  licenseType        String            @default("Commercial Permissive")
+  tags               String[]
+  features           String[]
+  channels           String[] // Website, WhatsApp, Slack, etc.
+  setupComplexity    String? // "Instant (<5 min)", "Easy (<15 min)"
+  prerequisites      String? // plain-English prerequisites for buyers
+  hardwareReqs       Json?
+  benchmarks         Json?
+  architecture       Json?
+  codeSnippets       Json?
   // Live telemetry (PDP-02) — updated by platform, never seller-typed
-  uptimePct30d        Float?
-  latencyP95Ms        Float?
-  evalScore           Float?
-  activeInstalls      Int               @default(0)
-  lastVersionDate     DateTime?
+  uptimePct30d       Float?
+  latencyP95Ms       Float?
+  evalScore          Float?
+  activeInstalls     Int               @default(0)
+  lastVersionDate    DateTime?
   // Commerce
-  rating              Float             @default(5.0)
-  ratingCount         Int               @default(0)
-  downloadCount       Int               @default(0)
-  viewCount           Int               @default(0)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  rating             Float             @default(5.0)
+  ratingCount        Int               @default(0)
+  downloadCount      Int               @default(0)
+  viewCount          Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  workspace           Workspace         @relation(fields: [workspaceId], references: [id])
-  seller              SellerProfile     @relation(fields: [sellerId], references: [id])
-  versions            ProductVersion[]
-  prices              Price[]
-  orderItems          OrderItem[]
-  entitlements        Entitlement[]
-  reviews             Review[]
-  moderations         ModerationRecord[]
-  evalResults         EvalResult[]
-  scanReports         ScanReport[]
-  sandboxRuns         SandboxRun[]
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id])
+  seller       SellerProfile      @relation(fields: [sellerId], references: [id])
+  versions     ProductVersion[]
+  prices       Price[]
+  orderItems   OrderItem[]
+  entitlements Entitlement[]
+  reviews      Review[]
+  moderations  ModerationRecord[]
+  evalResults  EvalResult[]
+  scanReports  ScanReport[]
+  sandboxRuns  SandboxRun[]
 
   @@index([workspaceId])
   @@index([status])
@@ -298,35 +299,35 @@ model Product {
 }
 
 model ProductVersion {
-  id                  String   @id @default(uuid())
-  productId           String
-  version             String   // semver e.g. "2.4.1"
-  changelog           String
-  releaseNotes        String?
-  artifactHash        String?  // SHA-256 of primary artifact
-  compatibility       String?  // "Python >=3.10, PyTorch 2.4"
-  isLatest            Boolean  @default(true)
-  publishedAt         DateTime @default(now())
-  createdAt           DateTime @default(now())
+  id            String   @id @default(uuid())
+  productId     String
+  version       String // semver e.g. "2.4.1"
+  changelog     String
+  releaseNotes  String?
+  artifactHash  String? // SHA-256 of primary artifact
+  compatibility String? // "Python >=3.10, PyTorch 2.4"
+  isLatest      Boolean  @default(true)
+  publishedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  files               ProductFile[]
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  files   ProductFile[]
 
   @@index([productId])
   @@map("product_versions")
 }
 
 model ProductFile {
-  id              String         @id @default(uuid())
-  versionId       String
-  fileName        String
-  storageKey      String         // S3/object-storage path
-  fileSize        BigInt         // bytes
-  checksumSha256  String
-  mimeType        String
-  createdAt       DateTime       @default(now())
+  id             String   @id @default(uuid())
+  versionId      String
+  fileName       String
+  storageKey     String // S3/object-storage path
+  fileSize       BigInt // bytes
+  checksumSha256 String
+  mimeType       String
+  createdAt      DateTime @default(now())
 
-  version         ProductVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  version ProductVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 
   @@map("product_files")
 }
@@ -339,18 +340,18 @@ model ProductFile {
 model Price {
   id          String   @id @default(uuid())
   productId   String
-  name        String   // "Starter", "Pro", "Enterprise"
-  model       String   // ONE_TIME | SUBSCRIPTION | PER_SEAT | PER_EVENT | PER_TOKEN | CREDITS | FREE | CUSTOM
-  amountMinor Int      // integer minor units (cents/paise) — NEVER Float
+  name        String // "Starter", "Pro", "Enterprise"
+  model       String // ONE_TIME | SUBSCRIPTION | PER_SEAT | PER_EVENT | PER_TOKEN | CREDITS | FREE | CUSTOM
+  amountMinor Int // integer minor units (cents/paise) — NEVER Float
   currency    String   @default("USD") // ISO 4217
-  interval    String?  // MONTH | YEAR (for subscriptions)
-  unitLabel   String?  // "per request", "per token", "per seat"
-  freeUnits   Int?     // free tier included units
+  interval    String? // MONTH | YEAR (for subscriptions)
+  unitLabel   String? // "per request", "per token", "per seat"
+  freeUnits   Int? // free tier included units
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems  OrderItem[]
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
   subscriptions Subscription[]
 
   @@index([productId])
@@ -364,77 +365,77 @@ model Price {
 // ============================================================================
 
 model Order {
-  id              String      @id @default(uuid())
-  workspaceId     String      // buyer workspace
-  buyerUserId     String
-  totalAmountMinor Int        // e.g. 4999 = $49.99
-  taxAmountMinor  Int         @default(0)
-  platformFeeMinor Int        @default(0)
-  sellerNetMinor  Int         @default(0)
-  currency        String      @default("USD")
-  status          OrderStatus @default(CREATED)
-  paymentProvider String?     // razorpay | stripe
-  providerOrderId String?     // provider's order/payment-intent ID
-  idempotencyKey  String?     @unique // Idempotency-Key header (SRS 8.3)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id               String      @id @default(uuid())
+  workspaceId      String // buyer workspace
+  buyerUserId      String
+  totalAmountMinor Int // e.g. 4999 = $49.99
+  taxAmountMinor   Int         @default(0)
+  platformFeeMinor Int         @default(0)
+  sellerNetMinor   Int         @default(0)
+  currency         String      @default("USD")
+  status           OrderStatus @default(CREATED)
+  paymentProvider  String? // razorpay | stripe
+  providerOrderId  String? // provider's order/payment-intent ID
+  idempotencyKey   String?     @unique // Idempotency-Key header (SRS 8.3)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  workspace       Workspace   @relation(fields: [workspaceId], references: [id])
-  items           OrderItem[]
-  payments        Payment[]
-  entitlements    Entitlement[]
-  invoice         Invoice?
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
+  items        OrderItem[]
+  payments     Payment[]
+  entitlements Entitlement[]
+  invoice      Invoice?
 
   @@index([workspaceId])
   @@map("orders")
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
-  orderId         String
-  productId       String
-  priceId         String
-  licenseTier     String
-  amountMinor     Int
-  currency        String   @default("USD")
-  createdAt       DateTime @default(now())
+  id          String   @id @default(uuid())
+  orderId     String
+  productId   String
+  priceId     String
+  licenseTier String
+  amountMinor Int
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
 
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product         Product  @relation(fields: [productId], references: [id])
-  price           Price    @relation(fields: [priceId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  price   Price   @relation(fields: [priceId], references: [id])
 
   @@map("order_items")
 }
 
 model Payment {
-  id              String      @id @default(uuid())
-  orderId         String
-  amountMinor     Int
-  currency        String      @default("USD")
-  provider        String      // razorpay | stripe
-  providerPayId   String?     @unique
-  status          String      @default("PENDING")
-  capturedAt      DateTime?
-  refundedAt      DateTime?
-  createdAt       DateTime    @default(now())
+  id            String    @id @default(uuid())
+  orderId       String
+  amountMinor   Int
+  currency      String    @default("USD")
+  provider      String // razorpay | stripe
+  providerPayId String?   @unique
+  status        String    @default("PENDING")
+  capturedAt    DateTime?
+  refundedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
-  order           Order       @relation(fields: [orderId], references: [id])
-  refunds         Refund[]
+  order   Order    @relation(fields: [orderId], references: [id])
+  refunds Refund[]
 
   @@index([orderId])
   @@map("payments")
 }
 
 model Refund {
-  id              String   @id @default(uuid())
-  paymentId       String
-  amountMinor     Int
-  currency        String   @default("USD")
-  reason          String?
+  id               String   @id @default(uuid())
+  paymentId        String
+  amountMinor      Int
+  currency         String   @default("USD")
+  reason           String?
   providerRefundId String?
-  createdAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
 
-  payment         Payment  @relation(fields: [paymentId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id])
 
   @@map("refunds")
 }
@@ -442,24 +443,25 @@ model Refund {
 /// G12 FIX: License model merged into Entitlement (unified access record).
 /// License keys generated with CSPRNG (G2 FIX), stored as hash server-side.
 model Entitlement {
-  id              String   @id @default(uuid())
-  workspaceId     String   // buyer workspace
-  productId       String
-  orderId         String
-  versionId       String?
-  licenseKeyHash  String   @unique // SHA-256 of the key — raw key shown once, never stored
-  licenseTier     String
-  downloadAllowed Boolean  @default(true)
-  apiAccess       Boolean  @default(false)
-  apiQuota        Int      @default(0) // requests/month; 0 = unlimited
-  apiUsed         Int      @default(0)
-  status          String   @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED
-  expiresAt       DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default(uuid())
+  workspaceId      String // buyer workspace
+  productId        String
+  orderId          String
+  versionId        String?
+  licenseKeyHash   String    @unique // SHA-256 of the key — raw key shown once, never stored
+  licenseKeyPrefix String? // first characters only, so buyers can recognise the key
+  licenseTier      String
+  downloadAllowed  Boolean   @default(true)
+  apiAccess        Boolean   @default(false)
+  apiQuota         Int       @default(0) // requests/month; 0 = unlimited
+  apiUsed          Int       @default(0)
+  status           String    @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  product         Product  @relation(fields: [productId], references: [id])
-  order           Order    @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
 
   @@index([workspaceId])
   @@index([productId])
@@ -467,38 +469,38 @@ model Entitlement {
 }
 
 model Subscription {
-  id              String   @id @default(uuid())
-  workspaceId     String
-  productId       String
-  priceId         String
-  status          String   @default("ACTIVE") // ACTIVE, PAUSED, CANCELED
+  id                 String   @id @default(uuid())
+  workspaceId        String
+  productId          String
+  priceId            String
+  status             String   @default("ACTIVE") // ACTIVE, PAUSED, CANCELED
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean @default(false)
-  providerSubId   String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  cancelAtPeriodEnd  Boolean  @default(false)
+  providerSubId      String?  @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  price           Price    @relation(fields: [priceId], references: [id])
+  price Price @relation(fields: [priceId], references: [id])
 
   @@index([workspaceId])
   @@map("subscriptions")
 }
 
 model Invoice {
-  id              String   @id @default(uuid())
-  orderId         String   @unique
-  workspaceId     String
-  invoiceNumber   String   @unique
-  amountMinor     Int
-  taxMinor        Int      @default(0)
-  currency        String   @default("USD")
-  gstNumber       String?  // for Indian GST invoices
-  hsnSacCode      String?
-  storageKey      String?  // PDF in object storage
-  issuedAt        DateTime @default(now())
+  id            String   @id @default(uuid())
+  orderId       String   @unique
+  workspaceId   String
+  invoiceNumber String   @unique
+  amountMinor   Int
+  taxMinor      Int      @default(0)
+  currency      String   @default("USD")
+  gstNumber     String? // for Indian GST invoices
+  hsnSacCode    String?
+  storageKey    String? // PDF in object storage
+  issuedAt      DateTime @default(now())
 
-  order           Order    @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 
   @@index([workspaceId])
   @@map("invoices")
@@ -510,18 +512,18 @@ model Invoice {
 // ============================================================================
 
 model UsageEvent {
-  id              String   @id @default(uuid())
-  workspaceId     String
-  productId       String?
-  apiKeyId        String?
-  idempotencyKey  String   @unique // prevents double-counting
-  eventType       String   // API_CALL | TOKEN | SANDBOX_RUN | DOWNLOAD
-  units           Int      @default(1)
-  amountMinor     Int      @default(0) // billable amount
-  currency        String   @default("USD")
-  recordedAt      DateTime @default(now())
+  id             String   @id @default(uuid())
+  workspaceId    String
+  productId      String?
+  apiKeyId       String?
+  idempotencyKey String   @unique // prevents double-counting
+  eventType      String // API_CALL | TOKEN | SANDBOX_RUN | DOWNLOAD
+  units          Int      @default(1)
+  amountMinor    Int      @default(0) // billable amount
+  currency       String   @default("USD")
+  recordedAt     DateTime @default(now())
 
-  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@index([workspaceId])
   @@index([recordedAt])
@@ -537,15 +539,15 @@ model WorkspaceApiKey {
   id          String    @id @default(uuid())
   workspaceId String
   name        String
-  prefix      String    // "ctx_live_abc123..." — safe to display
+  prefix      String // "ctx_live_abc123..." — safe to display
   keyHash     String    @unique // SHA-256 of full key — raw key never stored
-  scopes      String[]  // product IDs or "*" for all
+  scopes      String[] // product IDs or "*" for all
   environment String    @default("production")
   status      String    @default("ACTIVE") // ACTIVE, REVOKED
   lastUsedAt  DateTime?
   createdAt   DateTime  @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("workspace_api_keys")
@@ -559,14 +561,14 @@ model WorkspaceApiKey {
 model WalletLedger {
   id          String   @id @default(uuid())
   workspaceId String
-  type        String   // SALE | FEE | REFUND | PAYOUT | ADJUSTMENT
-  amountMinor Int      // positive = credit, negative = debit
+  type        String // SALE | FEE | REFUND | PAYOUT | ADJUSTMENT
+  amountMinor Int // positive = credit, negative = debit
   currency    String   @default("USD")
-  reference   String?  // order ID, payout ID etc.
+  reference   String? // order ID, payout ID etc.
   note        String?
   createdAt   DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@index([workspaceId])
   @@index([createdAt])
@@ -574,19 +576,19 @@ model WalletLedger {
 }
 
 model Payout {
-  id                String      @id @default(uuid())
-  workspaceId       String
-  amountMinor       Int
-  currency          String      @default("USD")
-  method            String      // stripe_connect | razorpay | bank_transfer
+  id                 String       @id @default(uuid())
+  workspaceId        String
+  amountMinor        Int
+  currency           String       @default("USD")
+  method             String // stripe_connect | razorpay | bank_transfer
   destinationAccount String?
-  status            PayoutStatus @default(PENDING)
-  providerPayoutId  String?
-  heldUntil         DateTime?
-  processedAt       DateTime?
-  createdAt         DateTime    @default(now())
+  status             PayoutStatus @default(PENDING)
+  providerPayoutId   String?
+  heldUntil          DateTime?
+  processedAt        DateTime?
+  createdAt          DateTime     @default(now())
 
-  workspace         Workspace   @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@index([workspaceId])
   @@map("payouts")
@@ -598,22 +600,22 @@ model Payout {
 // ============================================================================
 
 model Review {
-  id              String   @id @default(uuid())
-  productId       String
-  reviewerId      String
-  rating          Int      // 1-5
-  title           String
-  comment         String
+  id               String    @id @default(uuid())
+  productId        String
+  reviewerId       String
+  rating           Int // 1-5
+  title            String
+  comment          String
   versionPurchased String?
-  useCase         String?
-  verifiedPurchase Boolean @default(false) // set true after entitlement check
-  sellerReply     String?
-  sellerRepliedAt DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  useCase          String?
+  verifiedPurchase Boolean   @default(false) // set true after entitlement check
+  sellerReply      String?
+  sellerRepliedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  reviewer        User     @relation(fields: [reviewerId], references: [id])
+  product  Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reviewer User    @relation(fields: [reviewerId], references: [id])
 
   @@unique([productId, reviewerId]) // prevent duplicate reviews
   @@index([productId])
@@ -628,46 +630,46 @@ model ModerationRecord {
   id          String   @id @default(uuid())
   productId   String
   moderatorId String?
-  action      String   // SUBMIT | APPROVE | REJECT | SUSPEND | RESTORE | TAKEDOWN
+  action      String // SUBMIT | APPROVE | REJECT | SUSPEND | RESTORE | TAKEDOWN
   reason      String?
   checklist   Json?
   createdAt   DateTime @default(now())
 
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("moderation_records")
 }
 
 model ScanReport {
-  id          String     @id @default(uuid())
-  productId   String
-  versionId   String?
-  status      ScanStatus @default(QUEUED)
-  malwareScan String?
-  sbom        Json?
-  cveScan     Json?
+  id           String     @id @default(uuid())
+  productId    String
+  versionId    String?
+  status       ScanStatus @default(QUEUED)
+  malwareScan  String?
+  sbom         Json?
+  cveScan      Json?
   licenseCheck String?
-  score       Float?
-  scannedAt   DateTime?
-  createdAt   DateTime   @default(now())
+  score        Float?
+  scannedAt    DateTime?
+  createdAt    DateTime   @default(now())
 
-  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("scan_reports")
 }
 
 model EvalResult {
-  id          String   @id @default(uuid())
-  productId   String
-  versionId   String?
-  testSetId   String
-  score       Float    // 0.0 - 1.0
-  metrics     Json?
-  runAt       DateTime @default(now())
+  id        String   @id @default(uuid())
+  productId String
+  versionId String?
+  testSetId String
+  score     Float // 0.0 - 1.0
+  metrics   Json?
+  runAt     DateTime @default(now())
 
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("eval_results")
@@ -678,20 +680,23 @@ model EvalResult {
 // ============================================================================
 
 model SandboxRun {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   productId     String
-  sessionToken  String   // anonymous session reference
+  sessionToken  String // SHA-256 of user id or client IP, for daily quotas
+  userId        String?
+  workspaceId   String?
   durationMs    Int?
   tokenCount    Int?
-  costMinor     Int?     // billable cost in minor units
-  currency      String   @default("USD")
-  status        String   @default("COMPLETED")
+  costMinor     Int? // billable cost in minor units
+  currency      String    @default("USD")
+  status        String    @default("COMPLETED")
   inputPurgedAt DateTime? // SBX-05: purge within 24h
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
-  product       Product  @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@index([productId])
+  @@index([sessionToken, createdAt])
   @@map("sandbox_runs")
 }
 
@@ -700,32 +705,32 @@ model SandboxRun {
 // ============================================================================
 
 model SupportTicket {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   workspaceId String
   subject     String
-  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-  status      String   @default("OPEN")
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status      String    @default("OPEN")
   messages    Json
   slaDeadline DateTime?
   resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([workspaceId])
   @@map("support_tickets")
 }
 
 model CustomizationRequest {
-  id              String   @id @default(uuid())
-  workspaceId     String
-  productId       String?
-  briefDoc        Json?    // versioned brief document
-  estimateMinor   Int?     // estimate in minor units
-  currency        String   @default("USD")
-  status          String   @default("DRAFT")
-  timelineLog     Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(uuid())
+  workspaceId   String
+  productId     String?
+  briefDoc      Json? // versioned brief document
+  estimateMinor Int? // estimate in minor units
+  currency      String   @default("USD")
+  status        String   @default("DRAFT")
+  timelineLog   Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([workspaceId])
   @@map("customization_requests")
@@ -739,16 +744,16 @@ model AuditLog {
   id          String   @id @default(uuid())
   workspaceId String?
   actorId     String?
-  action      String   // e.g. "order.created", "apikey.revoked"
+  action      String // e.g. "order.created", "apikey.revoked"
   resourceId  String?
-  before      Json?    // state before change
-  after       Json?    // state after change
+  before      Json? // state before change
+  after       Json? // state after change
   ipAddress   String?
   requestId   String?
   createdAt   DateTime @default(now())
 
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
-  actor       User?      @relation(fields: [actorId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  actor     User?      @relation(fields: [actorId], references: [id])
 
   @@index([workspaceId])
   @@index([actorId])
@@ -757,35 +762,48 @@ model AuditLog {
 }
 
 // ============================================================================
+// 13b. PLATFORM SETTINGS (admin-configurable values such as the commission rate)
+// ============================================================================
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+// ============================================================================
 // 14. NOTIFICATIONS & WEBHOOKS (SRS v3.0 Section 5.11 ADM-06)
 // ============================================================================
 
 model Notification {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   workspaceId String
-  type        String   // usage_threshold | version_released | review_received
+  type        String // usage_threshold | version_released | review_received
   title       String
   body        String
   readAt      DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("notifications")
 }
 
 model Webhook {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   workspaceId String
   url         String
   events      String[] // ["order.paid", "usage.threshold"]
-  secretHash  String   // HMAC secret stored as hash
-  isActive    Boolean  @default(true)
+  secretHash  String // HMAC secret stored as hash
+  isActive    Boolean   @default(true)
   lastFiredAt DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("webhooks")
@@ -802,14 +820,14 @@ model Webhook {
 
 /// @deprecated Use Workspace instead. Kept for backward compatibility.
 model Tenant {
-  id                    String                    @id @default(uuid())
-  slug                  String                    @unique
-  name                  String
-  tier                  String                    @default("ENTERPRISE TIER")
-  role                  String                    @default("ADMIN_SECURITY_OFFICER")
-  monthlyTokenQuota     BigInt                    @default(10000000)
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
+  id                String   @id @default(uuid())
+  slug              String   @unique
+  name              String
+  tier              String   @default("ENTERPRISE TIER")
+  role              String   @default("ADMIN_SECURITY_OFFICER")
+  monthlyTokenQuota BigInt   @default(10000000)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   licenses              LegacyLicense[]
   apiKeys               LegacyApiKey[]
@@ -822,11 +840,11 @@ model Tenant {
 
 /// @deprecated Use Product instead.
 model Component {
-  id                String                       @id
+  id                String   @id
   name              String
   category          String
-  categoryBadge     String                       @default("badge-indigo")
-  version           String                       @default("v1.0.0")
+  categoryBadge     String   @default("badge-indigo")
+  version           String   @default("v1.0.0")
   shortDesc         String
   longDesc          String
   coreOutput        String
@@ -839,33 +857,33 @@ model Component {
   pricingTiers      Json
   architecture      Json
   codeSnippets      Json
-  published         Boolean                      @default(true)
-  createdAt         DateTime                     @default(now())
-  updatedAt         DateTime                     @updatedAt
+  published         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  licenses          LegacyLicense[]
-  customRequests    LegacyCustomizationRequest[]
+  licenses       LegacyLicense[]
+  customRequests LegacyCustomizationRequest[]
 
   @@map("components")
 }
 
 /// @deprecated Use Entitlement instead.
 model LegacyLicense {
-  id               String    @id @default(uuid())
-  tenantId         String
-  componentId      String
-  tier             String
-  licenseKey       String    @unique
-  status           String    @default("ACTIVE")
-  clusterTarget    String    @default("Dedicated VPC (AWS us-east-1)")
-  rateLimit        String    @default("1,000 req/min")
-  startDate        DateTime  @default(now())
-  renewalDate      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  tenantId      String
+  componentId   String
+  tier          String
+  licenseKey    String    @unique
+  status        String    @default("ACTIVE")
+  clusterTarget String    @default("Dedicated VPC (AWS us-east-1)")
+  rateLimit     String    @default("1,000 req/min")
+  startDate     DateTime  @default(now())
+  renewalDate   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  component        Component @relation(fields: [componentId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  component Component @relation(fields: [componentId], references: [id])
 
   @@map("licenses")
 }
@@ -884,14 +902,14 @@ model LegacyApiKey {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("api_keys")
 }
 
 /// @deprecated Use CustomizationRequest instead.
 model LegacyCustomizationRequest {
-  id               String    @id
+  id               String   @id
   tenantId         String
   componentId      String
   tenantName       String
@@ -902,48 +920,48 @@ model LegacyCustomizationRequest {
   estimatedPrice   String
   priceInr         String
   targetDelivery   String
-  status           String    @default("Submitted")
-  statusStep       Int       @default(1)
-  submittedDate    DateTime  @default(now())
+  status           String   @default("Submitted")
+  statusStep       Int      @default(1)
+  submittedDate    DateTime @default(now())
   timelineLog      Json
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  component        Component @relation(fields: [componentId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  component Component @relation(fields: [componentId], references: [id])
 
   @@map("customization_requests_legacy")
 }
 
 /// @deprecated Use SupportTicket instead.
 model LegacySupportTicket {
-  id           String   @id
-  tenantId     String
-  subject      String
-  priority     String
-  status       String   @default("OPEN")
-  lastActivity String   @default("Just now")
-  messages     Json
+  id            String   @id
+  tenantId      String
+  subject       String
+  priority      String
+  status        String   @default("OPEN")
+  lastActivity  String   @default("Just now")
+  messages      Json
   internalNotes String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("support_tickets_legacy")
 }
 
 /// @deprecated Use UsageEvent instead.
 model LegacyUsageMetric {
-  id       String   @id @default(uuid())
-  tenantId String
-  date     DateTime @default(now())
-  calls    Int      @default(0)
-  tokens   BigInt   @default(0)
-  costUsd  Float    @default(0.0)
+  id        String   @id @default(uuid())
+  tenantId  String
+  date      DateTime @default(now())
+  calls     Int      @default(0)
+  tokens    BigInt   @default(0)
+  costUsd   Float    @default(0.0)
   createdAt DateTime @default(now())
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("usage_metrics")
 }

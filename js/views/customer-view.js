@@ -1,81 +1,186 @@
 /**
- * AURA AI Platform
- * Customer Tenant Portal View Controller
- * Tactical Telemetry, Masked Key Management & Pipeline Tracking
+ * Cortex Hub - Buyer Portal View Controller
+ * Live workspace data when signed in to a buyer workspace; labelled sample data otherwise.
  */
 
 import { MOCK_TENANT, MOCK_LICENSES, MOCK_API_KEYS, MOCK_DAILY_USAGE, MOCK_SUPPORT_TICKETS } from "../data/mock-dashboard.js";
-import { getIconSvg, copyToClipboard, showToast } from "../utils/helpers.js";
+import { getIconSvg, copyToClipboard, showToast, escapeHtml } from "../utils/helpers.js";
+
+const esc = escapeHtml;
+
+function fmtDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function initials(name) {
+  return (name || "?")
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+// Sample data shown to visitors, in the same shape as the live data
+function sampleData() {
+  return {
+    isSample: true,
+    workspace: { name: MOCK_TENANT.name, plan: MOCK_TENANT.tier, role: MOCK_TENANT.role },
+    kpis: {
+      activeLicenses: MOCK_LICENSES.length,
+      spend: MOCK_TENANT.spendFormatted,
+      tokens: MOCK_DAILY_USAGE.reduce((n, u) => n + u.tokens, 0),
+      pendingCustomizations: null
+    },
+    licenses: MOCK_LICENSES.map((l) => ({
+      id: l.id,
+      componentId: l.componentId,
+      componentName: l.componentName,
+      tier: l.tier,
+      version: l.version,
+      status: l.status,
+      keyPrefix: null,
+      purchasedAt: l.startDate,
+      expiresAt: l.renewalDate,
+      totalPaid: l.monthlyPrice,
+      orderId: null,
+      sellerName: null
+    })),
+    apiKeys: MOCK_API_KEYS.map((k) => ({ id: k.id, name: k.name, environment: k.environment, prefix: k.masked, status: k.status || "Active", lastUsed: k.lastUsed })),
+    usage: MOCK_DAILY_USAGE.map((u) => ({ label: u.day, units: u.tokens })),
+    tickets: MOCK_SUPPORT_TICKETS.map((t) => ({ ...t, created: t.created })),
+    requests: null // filled from app.getCustomizationRequests()
+  };
+}
+
+function liveData(portal) {
+  const { summary, entitlements, apiKeys, tickets, requests, usage } = portal;
+  return {
+    isSample: false,
+    workspace: { name: summary.name, plan: summary.plan, role: summary.role },
+    kpis: {
+      activeLicenses: summary.activeEntitlements,
+      spend: summary.spendThisMonth,
+      tokens: summary.tokensThisMonth,
+      pendingCustomizations: summary.openCustomizations
+    },
+    licenses: entitlements.map((e) => ({
+      id: e.id,
+      componentId: e.componentId,
+      componentName: e.componentName,
+      tier: e.tier,
+      version: e.version,
+      status: e.status,
+      keyPrefix: e.licenseKeyPrefix,
+      purchasedAt: e.purchasedAt,
+      expiresAt: e.expiresAt,
+      totalPaid: e.totalPaid,
+      orderId: e.orderId,
+      invoiceNumber: e.invoiceNumber,
+      sellerName: e.sellerName
+    })),
+    apiKeys: apiKeys.map((k) => ({
+      id: k.id,
+      name: k.name,
+      environment: k.environment,
+      prefix: k.prefix,
+      status: k.status,
+      lastUsed: k.lastUsed ? fmtDate(k.lastUsed) : "Never"
+    })),
+    usage: usage.map((u) => ({ label: new Date(u.date).toLocaleDateString("en-IN", { weekday: "short" }), units: u.units })),
+    tickets: tickets.map((t) => ({ ...t, created: fmtDate(t.createdAt) })),
+    requests
+  };
+}
 
 export class CustomerView {
   constructor(app) {
     this.app = app;
-    this.tenant = MOCK_TENANT;
-    this.licenses = MOCK_LICENSES;
-    this.apiKeys = [...MOCK_API_KEYS];
     this.activeTab = "overview";
+    this.data = null;
   }
 
-  render(container) {
-    const requests = this.app.getCustomizationRequests();
+  async load() {
+    if (this.app.api.hasWorkspace("BUYER")) {
+      try {
+        this.data = liveData(await this.app.api.getBuyerPortal());
+        return;
+      } catch (err) {
+        showToast(`Could not load your workspace: ${err.message}`, "error");
+      }
+    }
+    this.data = sampleData();
+    this.data.requests = this.app.getCustomizationRequests();
+  }
+
+  async render(container) {
+    this.container = container;
+    container.innerHTML = `<div class="dashboard-container"><p style="color: var(--text-muted); padding: 40px 0;">Loading workspace…</p></div>`;
+    await this.load();
+    const d = this.data;
+    const pending = d.kpis.pendingCustomizations ?? d.requests.filter((r) => r.status !== "Delivered").length;
 
     container.innerHTML = `
       <div class="dashboard-container">
-        <!-- Banner -->
+        ${
+          d.isSample
+            ? `<div class="card" style="margin-bottom: 16px; border-color: var(--status-review); padding: 12px 16px; font-size: 0.85rem;">
+                <strong>Sample data.</strong> This is a preview of the buyer portal. Sign in with a buyer account to see your own licences, keys, usage and tickets.
+              </div>`
+            : ""
+        }
         <div class="dashboard-banner">
           <div class="tenant-identity">
-            <div class="tenant-avatar">AH</div>
+            <div class="tenant-avatar">${esc(initials(d.workspace.name))}</div>
             <div class="tenant-details">
-              <h2>${this.tenant.name}</h2>
+              <h2>${esc(d.workspace.name)}</h2>
               <div class="tenant-meta">
-                <span class="badge badge-lime">${this.tenant.tier}</span>
-                <span style="color: var(--text-muted);">TENANT: <code>${this.tenant.id}</code></span>
-                <span style="color: var(--text-muted);">ROLE: <strong>${this.tenant.role}</strong></span>
+                <span class="badge badge-lime">${esc(d.workspace.plan)}</span>
+                <span style="color: var(--text-muted);">ROLE: <strong>${esc(d.workspace.role)}</strong></span>
               </div>
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary btn-sm" id="btn-raise-ticket-top">
-              Support Desk
-            </button>
-            <button class="btn btn-primary btn-sm" id="btn-create-key-top">
-              + Generate API Key
-            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-raise-ticket-top">Support Desk</button>
+            <button class="btn btn-primary btn-sm" id="btn-create-key-top">+ Generate API Key</button>
           </div>
         </div>
 
-        <!-- Metrics -->
         <div class="kpi-grid">
           <div class="kpi-card">
-            <span class="kpi-title">Active Licenses</span>
-            <span class="kpi-value">${this.licenses.length}</span>
-            <span class="kpi-trend" style="color: var(--status-live);">● Both clusters healthy</span>
+            <span class="kpi-title">Active Licences</span>
+            <span class="kpi-value">${esc(d.kpis.activeLicenses)}</span>
+            <span class="kpi-trend">${d.isSample ? "Sample" : "From your paid orders"}</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-title">Monthly Quota Consumed</span>
-            <span class="kpi-value">64.2%</span>
-            <span class="kpi-trend">6.42M / 10M tokens used</span>
+            <span class="kpi-title">Spend This Month</span>
+            <span class="kpi-value">${esc(d.kpis.spend)}</span>
+            <span class="kpi-trend">${d.isSample ? "Sample" : "Incl. 18% GST"}</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-title">MTD Inference Spend</span>
-            <span class="kpi-value">${this.tenant.spendFormatted}</span>
-            <span class="kpi-trend" style="color: var(--accent-lime);">+12% vs prior cycle</span>
+            <span class="kpi-title">Tokens This Month</span>
+            <span class="kpi-value">${esc(Number(d.kpis.tokens).toLocaleString("en-IN"))}</span>
+            <span class="kpi-trend">${d.isSample ? "Sample" : "Recorded usage events"}</span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-title">Pending Customizations</span>
-            <span class="kpi-value">${requests.filter((r) => r.status !== "Delivered").length}</span>
-            <span class="kpi-trend">1 in engineering flight</span>
+            <span class="kpi-title">Open Customizations</span>
+            <span class="kpi-value">${esc(pending)}</span>
+            <span class="kpi-trend">Not yet delivered</span>
           </div>
         </div>
 
-        <!-- Tabs -->
         <div class="tab-bar" id="cust-dash-tabs">
-          <button class="tab-btn ${this.activeTab === "overview" ? "active" : ""}" data-tab="overview">LICENSES &amp; PURCHASES</button>
-          <button class="tab-btn ${this.activeTab === "vault" ? "active" : ""}" data-tab="vault">DIGITAL DELIVERY VAULT (SRS v2.0)</button>
-          <button class="tab-btn ${this.activeTab === "keys" ? "active" : ""}" data-tab="keys">API KEY MANAGEMENT</button>
-          <button class="tab-btn ${this.activeTab === "usage" ? "active" : ""}" data-tab="usage">INFERENCE TELEMETRY</button>
-          <button class="tab-btn ${this.activeTab === "requests" ? "active" : ""}" data-tab="requests">CUSTOMIZATION SPRINT</button>
-          <button class="tab-btn ${this.activeTab === "tickets" ? "active" : ""}" data-tab="tickets">SUPPORT TICKETS</button>
+          ${[
+            ["overview", "LICENCES &amp; PURCHASES"],
+            ["keys", "API KEYS"],
+            ["usage", "USAGE"],
+            ["requests", "CUSTOMIZATIONS"],
+            ["tickets", "SUPPORT TICKETS"]
+          ]
+            .map(([id, label]) => `<button class="tab-btn ${this.activeTab === id ? "active" : ""}" data-tab="${id}">${label}</button>`)
+            .join("")}
         </div>
 
         <div id="cust-tab-content"></div>
@@ -86,223 +191,132 @@ export class CustomerView {
     this.attachEvents(container);
   }
 
+  requireLive(action) {
+    if (this.data.isSample) {
+      showToast(`Sign in with a buyer account to ${action}.`, "info");
+      return false;
+    }
+    return true;
+  }
+
+  async refresh() {
+    if (this.container) await this.render(this.container);
+  }
+
   renderTabContent(container) {
     const tabBody = container.querySelector("#cust-tab-content");
     if (!tabBody) return;
+    const d = this.data;
 
     if (this.activeTab === "overview") {
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
-            <h3 class="subpanel-title">Active Production Licenses</h3>
-            <button class="btn btn-outline btn-sm" id="btn-browse-more-store">
-              Explore Catalog →
-            </button>
+            <div>
+              <h3 class="subpanel-title">Licences &amp; Purchases</h3>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                Licence keys are shown once when issued. Lost one? Rotate it to get a new key; the old key stops working.
+              </p>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-browse-more-store">Explore Catalog →</button>
           </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px;">
-            ${this.licenses
+          ${
+            d.licenses.length === 0
+              ? `<p style="color: var(--text-muted);">No purchases yet. Licences you buy appear here.</p>`
+              : `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px;">
+            ${d.licenses
               .map(
                 (lic) => `
               <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span class="badge badge-emerald">${lic.status}</span>
-                    <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${lic.id}</span>
+                    <span class="badge ${lic.status === "ACTIVE" || lic.status === "Active" ? "badge-emerald" : "badge-amber"}">${esc(lic.status)}</span>
+                    ${lic.invoiceNumber ? `<span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${esc(lic.invoiceNumber)}</span>` : ""}
                   </div>
-                  <h4 style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 2px;">${lic.componentName}</h4>
-                  <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime); margin-bottom: 12px;">${lic.tier} // ${lic.version}</div>
-
+                  <h4 style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 2px;">${esc(lic.componentName)}</h4>
+                  <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent-lime); margin-bottom: 12px;">${esc(lic.tier)}${lic.version ? ` // ${esc(lic.version)}` : ""}${lic.sellerName ? ` // by ${esc(lic.sellerName)}` : ""}</div>
                   <div style="display: flex; flex-direction: column; gap: 4px; font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-secondary); margin-bottom: 16px;">
-                    <div>TOPOLOGY: ${lic.env}</div>
-                    <div>RATE LIMIT: ${lic.rateLimit}</div>
-                    <div>RENEWAL: ${lic.renewalDate} (${lic.monthlyPrice})</div>
+                    <div>PURCHASED: ${esc(fmtDate(lic.purchasedAt))}${lic.totalPaid ? ` (${esc(lic.totalPaid)})` : ""}</div>
+                    <div>${lic.expiresAt ? `VALID UNTIL: ${esc(fmtDate(lic.expiresAt))}` : "PERPETUAL LICENCE"}</div>
+                    ${lic.keyPrefix ? `<div>KEY: <code>${esc(lic.keyPrefix)}…</code></div>` : ""}
                   </div>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
-                  <button class="btn btn-secondary btn-sm btn-download-invoice" data-id="${lic.id}">
-                    Invoice PDF
-                  </button>
-                  <button class="btn btn-primary btn-sm btn-launch-lic-sandbox" data-id="${lic.componentId}">
-                    Test Sandbox →
-                  </button>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn btn-secondary btn-sm btn-invoice" data-order="${esc(lic.orderId || "")}" ${lic.orderId ? "" : "disabled"}>Invoice</button>
+                    <button class="btn btn-secondary btn-sm btn-rotate-licence" data-id="${esc(lic.id)}">Rotate key</button>
+                  </div>
+                  <button class="btn btn-primary btn-sm btn-launch-lic-sandbox" data-id="${esc(lic.componentId)}">Test Sandbox →</button>
                 </div>
-              </div>
-            `
+              </div>`
               )
               .join("")}
-          </div>
+          </div>`
+          }
         </div>
       `;
 
-      tabBody.querySelector("#btn-browse-more-store").addEventListener("click", () => {
-        this.app.navigateTo("marketplace");
-      });
-
-      tabBody.querySelectorAll(".btn-download-invoice").forEach((btn) => {
+      tabBody.querySelector("#btn-browse-more-store").addEventListener("click", () => this.app.navigateTo("marketplace"));
+      tabBody.querySelectorAll(".btn-invoice").forEach((btn) => {
         btn.addEventListener("click", () => {
-          showToast(`Invoice for ${btn.dataset.id} downloaded!`, "success");
+          if (!this.requireLive("download invoices")) return;
+          window.open(`/api/invoices/${encodeURIComponent(btn.dataset.order)}`, "_blank", "noopener");
         });
       });
-
+      tabBody.querySelectorAll(".btn-rotate-licence").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!this.requireLive("rotate licence keys")) return;
+          if (!confirm("Issue a new licence key? The current key stops working immediately.")) return;
+          try {
+            const res = await this.app.api.rotateLicenseKey(btn.dataset.id);
+            this.showSecretModal("New licence key", res.licenseKey, "Store this key now. It will not be shown again.");
+            await this.refresh();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        });
+      });
       tabBody.querySelectorAll(".btn-launch-lic-sandbox").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          this.app.navigateTo("playground", { componentId: btn.dataset.id });
-        });
-      });
-    } else if (this.activeTab === "vault") {
-      const entitlements = this.app.api ? this.app.api.memoryEntitlements : [];
-
-      tabBody.innerHTML = `
-        <div class="dashboard-subpanel">
-          <div class="subpanel-header">
-            <div>
-              <h3 class="subpanel-title">Digital Delivery Vault (SRS Section 14 &amp; 23)</h3>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px;">
-                // Authenticated signed download URLs, SHA-256 integrity verification, and API quota credentials.
-              </p>
-            </div>
-            <span class="badge badge-lime">ENCRYPTED AT REST</span>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 14px;">
-            ${entitlements
-              .map(
-                (ent) => `
-              <div class="card" style="background: var(--bg-surface-2); border: 1px solid var(--border-medium); padding: 18px; border-radius: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                  <div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span class="badge badge-lime">ACTIVE ENTITLEMENT</span>
-                      <span class="badge badge-gray">${ent.tier}</span>
-                      <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent-cyan);">by ${ent.sellerName || "Apex AI Labs"}</span>
-                    </div>
-                    <h4 style="font-family: var(--font-heading); font-size: 1.2rem; color: #FFF; margin-top: 6px;">
-                      ${ent.componentName} (${ent.version})
-                    </h4>
-                    <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
-                      Licensed Key: <strong style="color: var(--accent-lime);">${ent.licenseKey}</strong> // Purchased: ${ent.purchasedDate}
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-sm btn-verify-checksum" data-checksum="${ent.checksumSha256}">
-                      Verify SHA-256 Checksum
-                    </button>
-                    <button class="btn btn-primary btn-sm btn-signed-download" data-name="${ent.componentName}">
-                      ${getIconSvg("download", 13)} Download Artifact (${ent.fileSize || "1.42 GB"})
-                    </button>
-                  </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; font-family: var(--font-mono); font-size: 0.78rem; background: var(--bg-deep); padding: 12px; border-radius: 6px; border: 1px solid var(--border-subtle);">
-                  <div>
-                    <span style="color: var(--text-muted); text-transform: uppercase;">API Quota Allocation:</span>
-                    <div style="color: #FFF; font-weight: 600; margin-top: 2px;">${ent.apiUsed || "0"} / ${ent.apiQuota || "1,000,000 reqs"}</div>
-                  </div>
-                  <div>
-                    <span style="color: var(--text-muted); text-transform: uppercase;">Artifact Package Size:</span>
-                    <div style="color: #FFF; font-weight: 600; margin-top: 2px;">${ent.fileSize || "1.42 GB"} (.tar.gz tarball)</div>
-                  </div>
-                  <div>
-                    <span style="color: var(--text-muted); text-transform: uppercase;">License Rights:</span>
-                    <div style="color: var(--accent-lime); font-weight: 600; margin-top: 2px;">Commercial Multi-Seat Internal</div>
-                  </div>
-                </div>
-
-                <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); word-break: break-all;">
-                    SHA-256: ${ent.checksumSha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
-                  </span>
-                  <button class="btn btn-ghost btn-sm btn-rate-purchased" data-id="${ent.componentId}">
-                    ★ Write Review for Vendor
-                  </button>
-                </div>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-        </div>
-      `;
-
-      tabBody.querySelectorAll(".btn-signed-download").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          showToast(`Generating authenticated signed URL for ${btn.dataset.name}... Download initiated!`, "success");
-        });
-      });
-
-      tabBody.querySelectorAll(".btn-verify-checksum").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          copyToClipboard(btn.dataset.checksum, "SHA-256 Checksum copied to clipboard. Integrity: MATCH (100% Valid)");
-        });
-      });
-
-      tabBody.querySelectorAll(".btn-rate-purchased").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          this.app.navigateTo("marketplace");
-          setTimeout(() => {
-            const cardBtn = document.querySelector(`.btn-view-detail[data-id="${btn.dataset.id}"]`);
-            if (cardBtn) cardBtn.click();
-          }, 300);
-        });
+        btn.addEventListener("click", () => this.app.navigateTo("playground", { componentId: btn.dataset.id }));
       });
     } else if (this.activeTab === "keys") {
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
             <div>
-              <h3 class="subpanel-title">Production &amp; Staging API Keys</h3>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px;">
-                // Keys hashed with SHA-256. Click eye to temporarily unmask raw secret (NFR-8).
+              <h3 class="subpanel-title">API Keys</h3>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                Keys are stored as SHA-256 hashes, so the full secret is shown only once, when created or rotated.
               </p>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-modal-generate-key">
-              + Generate Key
-            </button>
+            <button class="btn btn-primary btn-sm" id="btn-modal-generate-key">+ Generate Key</button>
           </div>
-
           <div class="table-responsive">
             <table class="data-table">
               <thead>
-                <tr>
-                  <th>Key Name</th>
-                  <th>Environment</th>
-                  <th>Masked Token Secret</th>
-                  <th>Last Ingress</th>
-                  <th>30d Calls</th>
-                  <th style="text-align: right;">Actions</th>
-                </tr>
+                <tr><th>Key Name</th><th>Environment</th><th>Key</th><th>Status</th><th>Last Used</th><th style="text-align: right;">Actions</th></tr>
               </thead>
               <tbody>
-                ${this.apiKeys
+                ${d.apiKeys
                   .map(
                     (k) => `
                   <tr>
-                    <td style="font-weight: 600; font-family: var(--font-mono);">${k.name}</td>
-                    <td>
-                      <span class="badge ${k.environment === "Production" ? "badge-lime" : "badge-gray"}">
-                        ${k.environment}
-                      </span>
-                    </td>
-                    <td>
-                      <code class="api-key-code key-secret-display" data-raw="${k.rawKey}" data-masked="${k.masked}">
-                        ${k.masked}
-                      </code>
-                    </td>
-                    <td style="color: var(--text-muted); font-size: 0.76rem; font-family: var(--font-mono);">${k.lastUsed}</td>
-                    <td style="font-family: var(--font-mono);">${k.calls30d}</td>
+                    <td style="font-weight: 600; font-family: var(--font-mono);">${esc(k.name)}</td>
+                    <td><span class="badge ${k.environment === "Production" ? "badge-lime" : "badge-gray"}">${esc(k.environment)}</span></td>
+                    <td><code class="api-key-code">${esc(k.prefix)}</code></td>
+                    <td><span class="badge ${/active/i.test(k.status) ? "badge-emerald" : "badge-gray"}">${esc(k.status)}</span></td>
+                    <td style="color: var(--text-muted); font-size: 0.76rem; font-family: var(--font-mono);">${esc(k.lastUsed)}</td>
                     <td style="text-align: right;">
-                      <div style="display: inline-flex; gap: 4px;">
-                        <button class="btn btn-outline btn-sm btn-reveal-key" data-id="${k.id}">Reveal</button>
-                        <button class="btn btn-outline btn-sm btn-copy-key" data-id="${k.id}">Copy</button>
-                        <button class="btn btn-secondary btn-sm btn-rotate-key" data-id="${k.id}" style="color: var(--signal-amber);">Rotate</button>
-                        <button class="btn btn-secondary btn-sm btn-revoke-key" data-id="${k.id}" style="color: var(--status-error);">Revoke</button>
-                      </div>
+                      ${
+                        /active/i.test(k.status)
+                          ? `<div style="display: inline-flex; gap: 4px;">
+                        <button class="btn btn-secondary btn-sm btn-rotate-key" data-id="${esc(k.id)}" style="color: var(--signal-amber);">Rotate</button>
+                        <button class="btn btn-secondary btn-sm btn-revoke-key" data-id="${esc(k.id)}" style="color: var(--status-error);">Revoke</button>
+                      </div>`
+                          : ""
+                      }
                     </td>
-                  </tr>
-                `
+                  </tr>`
                   )
                   .join("")}
               </tbody>
@@ -312,223 +326,144 @@ export class CustomerView {
       `;
 
       tabBody.querySelector("#btn-modal-generate-key").addEventListener("click", () => this.showNewKeyModal());
-
-      tabBody.querySelectorAll(".btn-reveal-key").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const row = btn.closest("tr");
-          const codeEl = row.querySelector(".key-secret-display");
-          const isRevealed = codeEl.textContent.trim() === codeEl.dataset.raw;
-          if (isRevealed) {
-            codeEl.textContent = codeEl.dataset.masked;
-            btn.textContent = "Reveal";
-          } else {
-            codeEl.textContent = codeEl.dataset.raw;
-            btn.textContent = "Mask";
-            showToast("Raw key exposed temporarily.", "info");
-          }
-        });
-      });
-
-      tabBody.querySelectorAll(".btn-copy-key").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const row = btn.closest("tr");
-          const codeEl = row.querySelector(".key-secret-display");
-          copyToClipboard(codeEl.dataset.raw, "API key copied to clipboard!");
-        });
-      });
-
       tabBody.querySelectorAll(".btn-rotate-key").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const keyId = btn.dataset.id;
-          const targetKey = this.apiKeys.find((k) => k.id === keyId);
-          if (confirm(`Rotate "${targetKey.name}"? Previous key remains accepted for 5 minutes during rollover.`)) {
-            const newSuffix = Math.random().toString(36).substring(2, 8);
-            targetKey.rawKey = `${targetKey.prefix}${newSuffix}rot99`;
-            targetKey.masked = `${targetKey.prefix}•••••••••••••${newSuffix}`;
-            showToast(`Key rotated! 5-min rollover active.`, "success");
-            this.renderTabContent(container);
+        btn.addEventListener("click", async () => {
+          if (!this.requireLive("rotate API keys")) return;
+          if (!confirm("Rotate this key? The current key is revoked immediately and a new one is issued.")) return;
+          try {
+            const res = await this.app.api.rotateApiKeyLive(btn.dataset.id);
+            this.showSecretModal("Rotated API key", res.key, "Update your services with this key now. It will not be shown again.");
+            await this.refresh();
+          } catch (err) {
+            showToast(err.message, "error");
           }
         });
       });
-
       tabBody.querySelectorAll(".btn-revoke-key").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const keyId = btn.dataset.id;
-          if (confirm(`Revoke key ${keyId}? This will terminate all traffic using this credential.`)) {
-            this.apiKeys = this.apiKeys.filter((k) => k.id !== keyId);
-            showToast(`Key ${keyId} revoked permanently.`, "warning");
-            this.renderTabContent(container);
+        btn.addEventListener("click", async () => {
+          if (!this.requireLive("revoke API keys")) return;
+          if (!confirm("Revoke this key? All traffic using it will be rejected.")) return;
+          try {
+            await this.app.api.revokeApiKeyLive(btn.dataset.id);
+            showToast("Key revoked.", "warning");
+            await this.refresh();
+          } catch (err) {
+            showToast(err.message, "error");
           }
         });
       });
     } else if (this.activeTab === "usage") {
+      const max = Math.max(1, ...d.usage.map((u) => u.units));
+      const total = d.usage.reduce((n, u) => n + u.units, 0);
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
-            <h3 class="subpanel-title">Inference Volume &amp; Quota Telemetry (FR-5.4)</h3>
-            <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">BILLING CYCLE: SEP 01 - SEP 30, 2026</span>
+            <h3 class="subpanel-title">Usage, last 7 days</h3>
+            <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${d.isSample ? "SAMPLE DATA" : "TOKENS FROM RECORDED USAGE EVENTS"}</span>
           </div>
-
-          <div class="usage-progress-container">
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
-              <span><strong>6,420,000</strong> Tokens Consumed</span>
-              <span><strong>10,000,000</strong> Quota Ceiling (64.2%)</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-bar-fill" style="width: 64.2%;"></div>
-            </div>
+          ${
+            total === 0
+              ? `<p style="color: var(--text-muted);">No usage recorded in the last 7 days. Sandbox runs and API calls appear here.</p>`
+              : `<div class="chart-container" role="img" aria-label="Tokens per day for the last 7 days, ${total.toLocaleString("en-IN")} in total">
+            ${d.usage
+              .map(
+                (u) => `
+              <div class="chart-bar-group" title="${esc(u.label)}: ${esc(u.units.toLocaleString("en-IN"))} tokens">
+                <div class="chart-bar" style="height: ${Math.max(2, Math.round((u.units / max) * 100))}%;"></div>
+                <span class="chart-label">${esc(u.label)}</span>
+              </div>`
+              )
+              .join("")}
           </div>
-
-          <h4 style="font-family: var(--font-heading); font-size: 0.95rem; margin-top: 28px; margin-bottom: 6px;">Daily Token Activity (7-Day Rolling Trend)</h4>
-          <div class="chart-container">
-            ${MOCK_DAILY_USAGE.map(
-              (u) => `
-              <div class="chart-bar-group" title="${u.day}: ${u.tokens.toLocaleString()} tokens">
-                <div class="chart-bar" style="height: ${u.heightPct}%;"></div>
-                <span class="chart-label">${u.day}</span>
-              </div>
-            `
-            ).join("")}
-          </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 10px; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">
-            <span>AVG DAILY: 850K tokens</span>
-            <span>RUN-RATE PROJECTION: 8.8M tokens (Within quota)</span>
-          </div>
+          <table class="data-table" style="margin-top: 16px;">
+            <thead><tr><th>Day</th><th style="text-align: right;">Tokens</th></tr></thead>
+            <tbody>${d.usage.map((u) => `<tr><td>${esc(u.label)}</td><td style="text-align: right; font-family: var(--font-mono);">${esc(u.units.toLocaleString("en-IN"))}</td></tr>`).join("")}</tbody>
+          </table>`
+          }
         </div>
       `;
     } else if (this.activeTab === "requests") {
-      const allRequests = this.app.getCustomizationRequests();
-
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
-            <div>
-              <h3 class="subpanel-title">Customization Pipeline &amp; Sprints (FR-5.7)</h3>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px;">
-                // Track architectural reviews, approved BOM quotes, and VPC delivery milestones.
-              </p>
-            </div>
-            <button class="btn btn-primary btn-sm" id="btn-request-new-customization">
-              + New Architecture
-            </button>
+            <h3 class="subpanel-title">Customization Requests</h3>
+            <button class="btn btn-primary btn-sm" id="btn-request-new-customization">+ New Request</button>
           </div>
-
-          ${allRequests
-            .map(
-              (req) => `
+          ${d.requests.length === 0 ? `<p style="color: var(--text-muted);">No customization requests yet.</p>` : ""}
+          ${d.requests
+            .map((req) => {
+              const steps = ["Submitted", "Scoping", "Quoted", "Engineering", "Delivered"];
+              return `
             <div class="request-pipeline-card">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
                 <div>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="badge ${req.status === "Delivered" ? "badge-emerald" : req.status === "In Progress" ? "badge-lime" : "badge-amber"}">
-                      ${req.status}
-                    </span>
-                    <strong style="font-family: var(--font-heading); font-size: 1.05rem;">${req.componentName}</strong>
-                    <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${req.id}</span>
+                    <span class="badge ${req.status === "Delivered" ? "badge-emerald" : req.status === "In Progress" ? "badge-lime" : "badge-amber"}">${esc(req.status)}</span>
+                    <strong style="font-family: var(--font-heading); font-size: 1.05rem;">${esc(req.componentName)}</strong>
+                    <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${esc(req.id)}</span>
                   </div>
-                  <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">
-                    SCOPE: ${req.scope} (${req.deploymentTarget})
-                  </div>
+                  <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">SCOPE: ${esc(req.scope)} (${esc(req.deploymentTarget)})</div>
                 </div>
-
                 <div style="text-align: right;">
-                  <div style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: var(--accent-lime);">${req.estimatedPrice}</div>
-                  <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${req.targetDelivery}</div>
+                  <div style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: var(--accent-lime);">${esc(req.estimatedPrice)}</div>
+                  <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${esc(req.targetDelivery)}</div>
                 </div>
               </div>
-
-              <!-- Pipeline Stepper -->
               <div class="pipeline-stepper">
-                <div class="pipeline-step ${req.statusStep >= 1 ? (req.statusStep > 1 ? "done" : "active") : ""}">
-                  <div class="pipeline-dot">${req.statusStep > 1 ? "✓" : "1"}</div>
-                  <span class="pipeline-label">Submitted</span>
-                </div>
-                <div class="pipeline-step ${req.statusStep >= 2 ? (req.statusStep > 2 ? "done" : "active") : ""}">
-                  <div class="pipeline-dot">${req.statusStep > 2 ? "✓" : "2"}</div>
-                  <span class="pipeline-label">Scoping</span>
-                </div>
-                <div class="pipeline-step ${req.statusStep >= 3 ? (req.statusStep > 3 ? "done" : "active") : ""}">
-                  <div class="pipeline-dot">${req.statusStep > 3 ? "✓" : "3"}</div>
-                  <span class="pipeline-label">Quoted</span>
-                </div>
-                <div class="pipeline-step ${req.statusStep >= 4 ? (req.statusStep > 4 ? "done" : "active") : ""}">
-                  <div class="pipeline-dot">${req.statusStep > 4 ? "✓" : "4"}</div>
-                  <span class="pipeline-label">Engineering</span>
-                </div>
-                <div class="pipeline-step ${req.statusStep >= 5 ? "done" : ""}">
-                  <div class="pipeline-dot">${req.statusStep >= 5 ? "✓" : "5"}</div>
-                  <span class="pipeline-label">Delivered</span>
-                </div>
+                ${steps
+                  .map((label, i) => {
+                    const n = i + 1;
+                    const cls = req.statusStep > n || (n === 5 && req.statusStep >= 5) ? "done" : req.statusStep === n ? "active" : "";
+                    return `<div class="pipeline-step ${cls}"><div class="pipeline-dot">${cls === "done" ? "✓" : n}</div><span class="pipeline-label">${label}</span></div>`;
+                  })
+                  .join("")}
               </div>
-
-              <!-- Audit Logs -->
-              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
-                <span style="font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                  // AUDIT LOG HISTORY (FR-3.8):
-                </span>
-                <ul style="list-style: none; margin-top: 4px; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px;">
-                  ${req.timelineLog
-                    .map(
-                      (log) => `
-                    <li><span style="color: var(--accent-lime);">${log.date}:</span> ${log.event}</li>
-                  `
-                    )
-                    .join("")}
-                </ul>
-              </div>
-            </div>
-          `
-            )
+              <ul style="list-style: none; margin-top: 10px; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px;">
+                ${(req.timelineLog || []).map((log) => `<li><span style="color: var(--accent-lime);">${esc(log.date)}:</span> ${esc(log.event)}</li>`).join("")}
+              </ul>
+            </div>`;
+            })
             .join("")}
         </div>
       `;
-
-      tabBody.querySelector("#btn-request-new-customization").addEventListener("click", () => {
-        this.app.navigateTo("configurator");
-      });
+      tabBody.querySelector("#btn-request-new-customization").addEventListener("click", () => this.app.navigateTo("configurator"));
     } else if (this.activeTab === "tickets") {
       tabBody.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
-            <h3 class="subpanel-title">Engineering Tickets (FR-5.6)</h3>
-            <button class="btn btn-primary btn-sm" id="btn-create-ticket-modal">
-              + Raise Ticket
-            </button>
+            <h3 class="subpanel-title">Support Tickets</h3>
+            <button class="btn btn-primary btn-sm" id="btn-create-ticket-modal">+ Raise Ticket</button>
           </div>
-
+          ${d.tickets.length === 0 ? `<p style="color: var(--text-muted);">No tickets yet.</p>` : ""}
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            ${MOCK_SUPPORT_TICKETS.map(
-              (tck) => `
+            ${d.tickets
+              .map((tck) => {
+                const last = tck.messages[tck.messages.length - 1];
+                return `
               <div class="card" style="padding: 14px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span class="badge ${tck.status === "Open" ? "badge-amber" : "badge-emerald"}">${tck.status}</span>
-                    <span class="badge badge-gray">${tck.priority} Priority</span>
-                    <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${tck.id}</span>
+                    <span class="badge ${/open/i.test(tck.status) ? "badge-amber" : "badge-emerald"}">${esc(tck.status)}</span>
+                    <span class="badge badge-gray">${esc(tck.priority)} priority</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${esc(tck.id)}</span>
                   </div>
-                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${tck.created}</span>
+                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${esc(tck.created)}</span>
                 </div>
-                <h4 style="font-family: var(--font-heading); font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">${tck.subject}</h4>
-                <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 10px;">
-                  "${tck.messages[tck.messages.length - 1].text}"
-                </p>
+                <h4 style="font-family: var(--font-heading); font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">${esc(tck.subject)}</h4>
+                ${last ? `<p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 10px;">"${esc(last.text)}"</p>` : ""}
                 <div style="display: flex; justify-content: flex-end;">
-                  <button class="btn btn-outline btn-sm btn-view-ticket-thread" data-id="${tck.id}">
-                    Discussion (${tck.messages.length}) →
-                  </button>
+                  <button class="btn btn-outline btn-sm btn-view-ticket-thread" data-id="${esc(tck.id)}">Discussion (${tck.messages.length}) →</button>
                 </div>
-              </div>
-            `
-            ).join("")}
+              </div>`;
+              })
+              .join("")}
           </div>
         </div>
       `;
-
       tabBody.querySelector("#btn-create-ticket-modal").addEventListener("click", () => this.showNewTicketModal());
-
       tabBody.querySelectorAll(".btn-view-ticket-thread").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const tck = MOCK_SUPPORT_TICKETS.find((t) => t.id === btn.dataset.id);
+          const tck = d.tickets.find((t) => t.id === btn.dataset.id);
           if (tck) this.showTicketThreadModal(tck);
         });
       });
@@ -541,12 +476,10 @@ export class CustomerView {
       this.updateActiveTabUI(container);
       this.showNewKeyModal();
     });
-
     container.querySelector("#btn-raise-ticket-top").addEventListener("click", () => {
       this.activeTab = "tickets";
       this.updateActiveTabUI(container);
     });
-
     container.querySelectorAll(".tab-btn").forEach((tab) => {
       tab.addEventListener("click", () => {
         this.activeTab = tab.dataset.tab;
@@ -556,171 +489,149 @@ export class CustomerView {
   }
 
   updateActiveTabUI(container) {
-    container.querySelectorAll(".tab-btn").forEach((t) => {
-      t.classList.toggle("active", t.dataset.tab === this.activeTab);
-    });
+    container.querySelectorAll(".tab-btn").forEach((t) => t.classList.toggle("active", t.dataset.tab === this.activeTab));
     this.renderTabContent(container);
   }
 
-  showNewKeyModal() {
-    let modal = document.getElementById("new-key-modal");
+  modal(id, html) {
+    let modal = document.getElementById(id);
     if (!modal) {
       modal = document.createElement("div");
-      modal.id = "new-key-modal";
+      modal.id = id;
       modal.className = "modal-backdrop";
       document.body.appendChild(modal);
     }
+    modal.innerHTML = html;
+    modal.classList.add("active");
+    modal.querySelectorAll(".modal-close-btn").forEach((btn) => btn.addEventListener("click", () => modal.classList.remove("active")));
+    return modal;
+  }
 
-    modal.innerHTML = `
-      <div class="modal-dialog">
+  showSecretModal(title, secret, note) {
+    const modal = this.modal(
+      "secret-modal",
+      `<div class="modal-dialog" style="max-width: 560px;">
         <div class="modal-header">
-          <h3 class="modal-title">Issue Ingress API Key (FR-5.3)</h3>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
+          <h3 class="modal-title" style="color: var(--text-primary);">${esc(title)}</h3>
+          <button class="btn-icon btn-ghost modal-close-btn" aria-label="Close">${getIconSvg("x", 20)}</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">${esc(note)}</p>
+          <code style="display: block; word-break: break-all; padding: 12px; background: var(--bg-deep); border: 1px solid var(--border-medium); font-family: var(--font-mono);">${esc(secret)}</code>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-copy-secret">Copy</button>
+          <button class="btn btn-primary modal-close-btn">I have stored it</button>
+        </div>
+      </div>`
+    );
+    modal.querySelector("#btn-copy-secret").addEventListener("click", () => copyToClipboard(secret, "Copied to clipboard"));
+  }
+
+  showNewKeyModal() {
+    if (!this.requireLive("create API keys")) return;
+    const modal = this.modal(
+      "new-key-modal",
+      `<div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title" style="color: var(--text-primary);">Create API Key</h3>
+          <button class="btn-icon btn-ghost modal-close-btn" aria-label="Close">${getIconSvg("x", 20)}</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label class="form-label">Key Identifier Name</label>
-            <input type="text" id="new-key-name" class="text-input" placeholder="e.g. Production Envoy Ingress" />
+            <label class="form-label" for="new-key-name">Key name</label>
+            <input type="text" id="new-key-name" class="text-input" placeholder="e.g. Production backend" maxlength="100" />
           </div>
           <div class="form-group">
-            <label class="form-label">Target Environment</label>
+            <label class="form-label" for="new-key-env">Environment</label>
             <select id="new-key-env" class="select-input">
-              <option value="Production">Production (VPC Isolated)</option>
+              <option value="Production">Production</option>
               <option value="Staging">Staging</option>
-              <option value="Development">Development</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Burst Ceiling</label>
-            <select class="select-input">
-              <option value="100">100 req/sec</option>
-              <option value="50">50 req/sec</option>
             </select>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary modal-close-btn">Cancel</button>
-          <button class="btn btn-primary" id="btn-confirm-create-key">Issue Secret Token</button>
+          <button class="btn btn-primary" id="btn-confirm-create-key">Create key</button>
         </div>
-      </div>
-    `;
-
-    modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
-    });
-
-    modal.querySelector("#btn-confirm-create-key").addEventListener("click", () => {
-      const name = modal.querySelector("#new-key-name").value.trim() || "Ingress Token";
+      </div>`
+    );
+    modal.querySelector("#btn-confirm-create-key").addEventListener("click", async () => {
+      const name = modal.querySelector("#new-key-name").value.trim() || "API key";
       const env = modal.querySelector("#new-key-env").value;
-      const rawHex = Math.random().toString(36).substring(2, 10);
-
-      this.apiKeys.unshift({
-        id: `key-${Date.now().toString().slice(-4)}`,
-        name,
-        environment: env,
-        prefix: `sk-${env.toLowerCase()}-acme-`,
-        masked: `sk-${env.toLowerCase()}-acme-•••••••••••••${rawHex.slice(0, 4)}`,
-        rawKey: `sk-${env.toLowerCase()}-acme-${rawHex}902847a`,
-        created: new Date().toISOString().split("T")[0],
-        lastUsed: "Never",
-        status: "Active",
-        calls30d: "0"
-      });
-
-      modal.classList.remove("active");
-      showToast(`Key "${name}" provisioned.`, "success");
-      const container = document.querySelector(".dashboard-container");
-      if (container) this.renderTabContent(container);
+      try {
+        const res = await this.app.api.createApiKeyLive(name, env);
+        modal.classList.remove("active");
+        this.showSecretModal("New API key", res.key, "Store this key now. It will not be shown again.");
+        await this.refresh();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
     });
   }
 
   showNewTicketModal() {
-    let modal = document.getElementById("new-ticket-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "new-ticket-modal";
-      modal.className = "modal-backdrop";
-      document.body.appendChild(modal);
-    }
-
-    modal.innerHTML = `
-      <div class="modal-dialog">
+    if (!this.requireLive("open support tickets")) return;
+    const modal = this.modal(
+      "new-ticket-modal",
+      `<div class="modal-dialog">
         <div class="modal-header">
-          <h3 class="modal-title">Open Support Ticket (FR-5.6)</h3>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
+          <h3 class="modal-title" style="color: var(--text-primary);">Open Support Ticket</h3>
+          <button class="btn-icon btn-ghost modal-close-btn" aria-label="Close">${getIconSvg("x", 20)}</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label class="form-label">Subject</label>
-            <input type="text" id="tck-subject" class="text-input" placeholder="e.g. VPC peering CIDR conflict in us-east-1" />
+            <label class="form-label" for="tck-subject">Subject</label>
+            <input type="text" id="tck-subject" class="text-input" maxlength="200" />
           </div>
           <div class="form-group">
-            <label class="form-label">Urgency SLA</label>
+            <label class="form-label" for="tck-priority">Priority</label>
             <select id="tck-priority" class="select-input">
-              <option value="High">High (Within 2 hours)</option>
-              <option value="Medium">Medium (Within 8 hours)</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM" selected>Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Description &amp; Request IDs</label>
-            <textarea id="tck-desc" class="textarea-input" placeholder="Provide log snippets or request tracing IDs..."></textarea>
+            <label class="form-label" for="tck-desc">Description</label>
+            <textarea id="tck-desc" class="textarea-input" maxlength="5000" placeholder="What happened? Include request IDs if you have them."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary modal-close-btn">Cancel</button>
-          <button class="btn btn-primary" id="btn-submit-ticket">Dispatch Ticket</button>
+          <button class="btn btn-primary" id="btn-submit-ticket">Submit ticket</button>
         </div>
-      </div>
-    `;
-
-    modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
-    });
-
-    modal.querySelector("#btn-submit-ticket").addEventListener("click", () => {
-      const subject = modal.querySelector("#tck-subject").value.trim() || "Technical Question";
-      const priority = modal.querySelector("#tck-priority").value;
-      const desc = modal.querySelector("#tck-desc").value.trim();
-
-      MOCK_SUPPORT_TICKETS.unshift({
-        id: `TCK-${Math.floor(310 + Math.random() * 50)}`,
-        subject,
-        priority,
-        category: "Infrastructure",
-        status: "Open",
-        created: "Just now",
-        messages: [{ sender: "Customer (You)", time: "Just now", text: desc || subject }]
-      });
-
-      modal.classList.remove("active");
-      showToast("Support ticket dispatched to on-call engineer.", "success");
-      const container = document.querySelector(".dashboard-container");
-      if (container) this.renderTabContent(container);
+      </div>`
+    );
+    modal.querySelector("#btn-submit-ticket").addEventListener("click", async () => {
+      const subject = modal.querySelector("#tck-subject").value.trim();
+      if (!subject) return showToast("Add a subject.", "warning");
+      try {
+        await this.app.api.createTicketLive(subject, modal.querySelector("#tck-priority").value, modal.querySelector("#tck-desc").value.trim() || subject);
+        modal.classList.remove("active");
+        showToast("Ticket submitted.", "success");
+        this.activeTab = "tickets";
+        await this.refresh();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
     });
   }
 
   showTicketThreadModal(ticket) {
-    let modal = document.getElementById("ticket-thread-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "ticket-thread-modal";
-      modal.className = "modal-backdrop";
-      document.body.appendChild(modal);
-    }
-
-    modal.innerHTML = `
-      <div class="modal-dialog modal-lg">
+    const modal = this.modal(
+      "ticket-thread-modal",
+      `<div class="modal-dialog modal-lg">
         <div class="modal-header">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="badge ${ticket.status === "Open" ? "badge-amber" : "badge-emerald"}">${ticket.status}</span>
-              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${ticket.id}</span>
+              <span class="badge ${/open/i.test(ticket.status) ? "badge-amber" : "badge-emerald"}">${esc(ticket.status)}</span>
+              <span style="font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted);">${esc(ticket.id)}</span>
             </div>
-            <h3 class="modal-title" style="margin-top: 4px;">${ticket.subject}</h3>
+            <h3 class="modal-title" style="margin-top: 4px; color: var(--text-primary);">${esc(ticket.subject)}</h3>
           </div>
-          <button class="btn-icon btn-ghost modal-close-btn">${getIconSvg("x", 20)}</button>
+          <button class="btn-icon btn-ghost modal-close-btn" aria-label="Close">${getIconSvg("x", 20)}</button>
         </div>
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
           ${ticket.messages
@@ -728,39 +639,29 @@ export class CustomerView {
               (m) => `
             <div style="padding: 10px 14px; background: var(--bg-surface-2); border: 1px solid var(--border-medium); border-radius: var(--radius-xs);">
               <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-lime); margin-bottom: 4px;">
-                <strong>${m.sender}</strong>
-                <span style="color: var(--text-muted);">${m.time}</span>
+                <strong>${esc(m.author || m.sender)}</strong>
+                <span style="color: var(--text-muted);">${esc(fmtDate(m.time))}</span>
               </div>
-              <div style="font-size: 0.85rem; color: var(--text-primary);">${m.text}</div>
-            </div>
-          `
+              <div style="font-size: 0.85rem; color: var(--text-primary); white-space: pre-wrap;">${esc(m.text)}</div>
+            </div>`
             )
             .join("")}
         </div>
-        <div class="modal-footer" style="flex-direction: column; align-items: stretch;">
-          <div style="display: flex; gap: 6px;">
-            <input type="text" id="ticket-reply-input" class="text-input" placeholder="Reply to support engineer..." />
-            <button class="btn btn-primary" id="btn-send-ticket-reply">Send Reply</button>
-          </div>
+        <div class="modal-footer">
+          <input type="text" id="ticket-reply-input" class="text-input" placeholder="Write a reply…" maxlength="5000" aria-label="Reply" />
+          <button class="btn btn-primary" id="btn-send-ticket-reply">Send</button>
         </div>
-      </div>
-    `;
-
-    modal.classList.add("active");
-    modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
-      btn.addEventListener("click", () => modal.classList.remove("active"));
-    });
-
-    modal.querySelector("#btn-send-ticket-reply").addEventListener("click", () => {
-      const input = modal.querySelector("#ticket-reply-input");
-      if (input.value.trim()) {
-        ticket.messages.push({
-          sender: "Customer (You)",
-          time: "Just now",
-          text: input.value.trim()
-        });
-        showToast("Reply sent", "info");
+      </div>`
+    );
+    modal.querySelector("#btn-send-ticket-reply").addEventListener("click", async () => {
+      const text = modal.querySelector("#ticket-reply-input").value.trim();
+      if (!text || !this.requireLive("reply to tickets")) return;
+      try {
+        const res = await this.app.api.replyToTicket(ticket.id, text);
+        ticket.messages = res.messages;
         this.showTicketThreadModal(ticket);
+      } catch (err) {
+        showToast(err.message, "error");
       }
     });
   }

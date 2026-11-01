@@ -6,7 +6,7 @@
 
 import { CATALOG_COMPONENTS } from "../data/catalog-data.js";
 import { MOCK_ADMIN_DEPLOYMENTS } from "../data/mock-dashboard.js";
-import { getIconSvg, showToast } from "../utils/helpers.js";
+import { escapeHtml, getIconSvg, showToast } from "../utils/helpers.js";
 
 export class AdminView {
   constructor(app) {
@@ -17,8 +17,22 @@ export class AdminView {
     this.components = [...CATALOG_COMPONENTS];
   }
 
+  get isLive() {
+    return this.app.api.isStaff();
+  }
+
+  money(minor) {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((minor || 0) / 100);
+  }
+
   async render(container) {
-    const queue = await this.app.api.getModerationQueue();
+    let queue;
+    try {
+      queue = await this.app.api.getModerationQueue();
+    } catch (err) {
+      container.innerHTML = `<p style="padding: 40px 0; color: var(--status-error);">Could not load the admin console: ${escapeHtml(err.message)}</p>`;
+      return;
+    }
     const pendingCount = queue.filter((m) => m.status === "UNDER_REVIEW").length;
 
     container.innerHTML = `
@@ -31,7 +45,12 @@ export class AdminView {
           </div>
 
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="role-switcher-container">
+            ${
+              this.isLive
+                ? `<span class="badge badge-lime">SIGNED IN AS ${escapeHtml(this.app.currentUser.globalRole)}</span>`
+                : `<span class="badge badge-amber">SAMPLE DATA: sign in as staff for live data</span>`
+            }
+            <div class="role-switcher-container" ${this.isLive ? "hidden" : ""}>
               <span class="role-label">RBAC:</span>
               <select id="admin-role-select" class="role-select">
                 <option value="Platform Admin" ${this.currentRole === "Platform Admin" ? "selected" : ""}>Platform Admin</option>
@@ -39,7 +58,6 @@ export class AdminView {
                 <option value="Billing Admin" ${this.currentRole === "Billing Admin" ? "selected" : ""}>Billing Admin</option>
               </select>
             </div>
-            <span class="badge badge-emerald">SYS NORMAL</span>
           </div>
         </div>
 
@@ -165,7 +183,7 @@ export class AdminView {
         });
       });
     } else if (this.activeTab === "kanban") {
-      const requests = this.app.getCustomizationRequests();
+      const requests = this.isLive ? await this.app.refreshCustomizationRequests() : this.app.getCustomizationRequests();
 
       const columns = [
         { id: "Submitted", title: "NEW SUBMITTED", count: 0, cards: [] },
@@ -234,6 +252,7 @@ export class AdminView {
 
       this.attachKanbanEvents(body);
     } else if (this.activeTab === "catalog") {
+      if (this.isLive) this.components = await this.app.api.getComponents();
       body.innerHTML = `
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
@@ -285,80 +304,147 @@ export class AdminView {
       `;
 
       body.querySelectorAll(".btn-edit-price").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
           const c = this.components.find((comp) => comp.id === btn.dataset.id);
-          const newPrice = prompt(`Enter new base price for ${c.name}:`, c.basePrice);
-          if (newPrice && !isNaN(newPrice)) {
-            c.basePrice = parseInt(newPrice);
-            c.priceFormatted = `$${newPrice}`;
-            c.inrPriceFormatted = `₹${Math.round(newPrice * 83.5).toLocaleString()}`;
-            showToast(`Base price for ${c.name} updated to $${newPrice}!`, "success");
+          const tier = c.pricingTiers?.[0]?.name;
+          if (!this.isLive) {
+            showToast("Sign in as an admin to change prices.", "info");
+            return;
+          }
+          const input = prompt(`New monthly price in INR (₹) for ${c.name}, ${tier} tier:`);
+          const amount = Number(input);
+          if (!input || !Number.isInteger(amount) || amount <= 0) return;
+          try {
+            const res = await this.app.api.setProductPrice(c.id, tier, amount);
+            showToast(`${c.name} ${res.tier} price set to ${res.formatted}.`, "success");
             this.renderTabContent(container);
+          } catch (err) {
+            showToast(err.message, "error");
           }
         });
       });
     } else if (this.activeTab === "revenue") {
+      if (!this.isLive) {
+        body.innerHTML = `<div class="dashboard-subpanel"><p style="color: var(--text-secondary);">Revenue figures come from paid orders. Sign in as an admin or finance user to see them.</p></div>`;
+        return;
+      }
+      let rev;
+      let payouts;
+      try {
+        [rev, payouts] = await Promise.all([this.app.api.getAdminRevenue(), this.app.api.getAdminPayouts()]);
+      } catch (err) {
+        body.innerHTML = `<p style="color: var(--status-error);">${escapeHtml(err.message)}</p>`;
+        return;
+      }
+      const ratePct = Math.round(rev.commissionRate * 100);
       body.innerHTML = `
         <div class="revenue-grid">
           <div class="revenue-card">
-            <div class="rev-label">Platform Gross Merchandise Volume (GMV)</div>
-            <div class="rev-val" style="color: var(--accent-lime);">$148,250</div>
-            <div class="rev-sub">+24.2% MoM transaction volume</div>
+            <div class="rev-label">Gross Merchandise Volume (excl. GST)</div>
+            <div class="rev-val" style="color: var(--accent-lime);">${this.money(rev.gmvMinor)}</div>
+            <div class="rev-sub">${rev.paidOrders} paid orders · ${this.money(rev.monthGmvMinor)} this month</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Platform Commission Retained (15%)</div>
-            <div class="rev-val" style="color: var(--accent-amber);">$22,237.50</div>
-            <div class="rev-sub">Configurable take-rate fee</div>
+            <div class="rev-label">Platform Commission Earned</div>
+            <div class="rev-val" style="color: var(--accent-amber);">${this.money(rev.platformFeesMinor)}</div>
+            <div class="rev-sub">GST collected: ${this.money(rev.gstCollectedMinor)}</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Disbursed Seller Payouts</div>
-            <div class="rev-val">$126,012.50</div>
-            <div class="rev-sub" style="color: var(--signal-cyan);">85% paid to developers</div>
+            <div class="rev-label">Seller Payouts</div>
+            <div class="rev-val">${this.money(rev.payoutsPaidMinor)}</div>
+            <div class="rev-sub">${rev.payoutsPendingCount} pending (${this.money(rev.payoutsPendingMinor)})</div>
           </div>
           <div class="revenue-card">
-            <div class="rev-label">Active Multi-Vendor Sellers</div>
-            <div class="rev-val">42 Verified</div>
-            <div class="rev-sub">+6 verified this cycle</div>
+            <div class="rev-label">Sellers With Live Products</div>
+            <div class="rev-val">${rev.activeSellers}</div>
+            <div class="rev-sub">Earnings owed to sellers: ${this.money(rev.sellerEarningsMinor)}</div>
           </div>
         </div>
 
-        <!-- Platform Commission Configuration (SRS Section 19) -->
         <div class="dashboard-subpanel" style="margin-top: 20px;">
-          <h3 class="subpanel-title" style="margin-bottom: 8px;">Platform Commission &amp; Take-Rate Architecture (SRS Section 19)</h3>
-          <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 16px;">
-            The take-rate is configurable by Platform Admin rather than hardcoded. Applied at transaction clearance.
-          </p>
+          <h3 class="subpanel-title" style="margin-bottom: 8px;">Revenue by Product</h3>
+          ${
+            rev.byProduct.length === 0
+              ? `<p style="color: var(--text-muted);">No paid orders yet.</p>`
+              : `<table class="data-table"><thead><tr><th>Product</th><th style="text-align: right;">Orders</th><th style="text-align: right;">Revenue (excl. GST)</th></tr></thead><tbody>
+            ${rev.byProduct.map((r) => `<tr><td>${escapeHtml(r.product)}</td><td style="text-align: right;">${r.orders}</td><td style="text-align: right; font-family: var(--font-mono);">${this.money(r.revenueMinor)}</td></tr>`).join("")}
+          </tbody></table>`
+          }
+        </div>
 
-          <div style="display: flex; align-items: center; gap: 16px; background: var(--bg-deep); padding: 16px; border-radius: 6px; border: 1px solid var(--border-medium);">
+        <div class="dashboard-subpanel" style="margin-top: 20px;">
+          <h3 class="subpanel-title" style="margin-bottom: 8px;">Platform Commission</h3>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 16px;">Applied to new orders at checkout. Existing orders keep the rate they were placed at.</p>
+          <div style="display: flex; align-items: center; gap: 16px; background: var(--bg-deep); padding: 16px; border: 1px solid var(--border-medium);">
             <div style="flex: 1;">
-              <label class="form-label">Platform Take-Rate Percentage</label>
-              <input type="range" min="5" max="30" value="15" id="commission-slider" style="width: 100%; accent-color: var(--accent-lime);" />
+              <label class="form-label" for="commission-slider">Take rate</label>
+              <input type="range" min="5" max="30" value="${ratePct}" id="commission-slider" style="width: 100%; accent-color: var(--accent-lime);" />
             </div>
-            <div style="width: 120px; text-align: center;">
-              <span id="commission-display" style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent-lime);">15%</span>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">Standard Tier</div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="btn-save-commission">Update Take-Rate</button>
+            <span id="commission-display" style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--accent-lime); width: 80px; text-align: center;">${ratePct}%</span>
+            <button class="btn btn-primary btn-sm" id="btn-save-commission">Save</button>
           </div>
+        </div>
+
+        <div class="dashboard-subpanel" style="margin-top: 20px;">
+          <h3 class="subpanel-title" style="margin-bottom: 8px;">Payout Requests</h3>
+          ${
+            payouts.length === 0
+              ? `<p style="color: var(--text-muted);">No payout requests.</p>`
+              : `<table class="data-table"><thead><tr><th>Seller</th><th>Requested</th><th>Method</th><th style="text-align: right;">Amount</th><th>Status</th><th style="text-align: right;">Action</th></tr></thead><tbody>
+            ${payouts
+              .map(
+                (p) => `<tr>
+              <td>${escapeHtml(p.seller)}</td>
+              <td>${escapeHtml(new Date(p.date).toLocaleDateString("en-IN"))}</td>
+              <td>${escapeHtml(p.method.replace("_", " "))}</td>
+              <td style="text-align: right; font-family: var(--font-mono);">${this.money(p.amountMinor)}</td>
+              <td><span class="badge ${p.status === "PAID" ? "badge-emerald" : p.status === "FAILED" ? "badge-gray" : "badge-amber"}">${escapeHtml(p.status)}</span></td>
+              <td style="text-align: right;">${
+                ["PENDING", "PROCESSING"].includes(p.status)
+                  ? `<button class="btn btn-outline btn-sm btn-payout" data-id="${escapeHtml(p.id)}" data-status="PAID">Mark paid</button>
+                     <button class="btn btn-secondary btn-sm btn-payout" data-id="${escapeHtml(p.id)}" data-status="FAILED">Failed</button>`
+                  : ""
+              }</td>
+            </tr>`
+              )
+              .join("")}
+          </tbody></table>`
+          }
         </div>
       `;
 
       const slider = body.querySelector("#commission-slider");
       const display = body.querySelector("#commission-display");
-      if (slider && display) {
-        slider.addEventListener("input", (e) => {
-          display.textContent = `${e.target.value}%`;
+      slider.addEventListener("input", (e) => {
+        display.textContent = `${e.target.value}%`;
+      });
+      body.querySelector("#btn-save-commission").addEventListener("click", async () => {
+        try {
+          await this.app.api.setCommissionRate(Number(slider.value) / 100);
+          showToast(`Commission set to ${slider.value}% for new orders.`, "success");
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+      body.querySelectorAll(".btn-payout").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm(btn.dataset.status === "PAID" ? "Mark this payout as paid? Only do this after the transfer has gone out." : "Mark as failed? The amount returns to the seller's balance.")) return;
+          try {
+            await this.app.api.updatePayout(btn.dataset.id, btn.dataset.status);
+            this.renderTabContent(container);
+          } catch (err) {
+            showToast(err.message, "error");
+          }
         });
-      }
-      const saveBtn = body.querySelector("#btn-save-commission");
-      if (saveBtn && slider) {
-        saveBtn.addEventListener("click", () => {
-          this.app.api.platformCommissionRate = parseInt(slider.value) / 100;
-          showToast(`Platform commission rate updated to ${slider.value}%!`, "success");
-        });
-      }
+      });
     } else if (this.activeTab === "deployments") {
+      if (this.isLive) {
+        body.innerHTML = `<div class="dashboard-subpanel"><h3 class="subpanel-title" style="margin-bottom: 8px;">Deployments</h3>
+          <p style="color: var(--text-secondary);">No managed deployments yet. Customer deployments will be listed here, with health checks from monitoring, once the hosted runtime and private-deployment packages ship (SRS RUN-01, RUN-05).</p></div>`;
+        return;
+      }
       body.innerHTML = `
+        <div class="card" style="margin-bottom: 12px; border-color: var(--status-review); padding: 10px 14px; font-size: 0.82rem;"><strong>Sample data.</strong> These rows and ping results are illustrative.</div>
         <div class="dashboard-subpanel">
           <div class="subpanel-header">
             <div>
@@ -495,7 +581,7 @@ export class AdminView {
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Quoted Commercial Value (USD)</label>
+              <label class="form-label">Quoted Commercial Value</label>
               <input type="text" class="text-input" id="drawer-price-input" value="${req.estimatedPrice}" />
             </div>
             <div class="form-group">
@@ -516,14 +602,18 @@ export class AdminView {
           const newPrice = drawer.querySelector("#drawer-price-input").value;
           const newScope = drawer.querySelector("#drawer-scope-input").value;
 
-          await this.app.api.updateCustomizationRequest(req.id, {
-            status: newStatus,
-            estimatedPrice: newPrice,
-            scope: newScope,
-            timelineEvent: `Admin updated status to ${newStatus} with revised scope.`
-          });
-
-          showToast(`Job ${req.id} successfully updated!`, "success");
+          try {
+            await this.app.api.updateCustomizationRequest(req.id, {
+              status: newStatus,
+              estimatedPrice: newPrice,
+              scope: newScope,
+              timelineEvent: `Status set to ${newStatus}.`
+            });
+          } catch (err) {
+            showToast(err.message, "error");
+            return;
+          }
+          showToast(`${req.id} updated.`, "success");
           drawer.classList.remove("active");
           this.renderTabContent(body.closest(".admin-container"));
         });

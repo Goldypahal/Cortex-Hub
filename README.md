@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-> **Status:** prototype (SRS v3.0 Phase 0). Catalog figures (uptime, latency, eval scores, revenue) are sample data, and checkout is simulated: no payments are taken. No compliance certification has been issued yet.
+> **Status:** pre-launch (SRS v3.0, Phase 0 to 1). Orders, licences, invoices, seller wallets, payouts and moderation are stored in PostgreSQL. Checkout takes real payments through Razorpay once keys are configured (otherwise a labelled test payment, never in production). The live sandbox answers with Claude once `ANTHROPIC_API_KEY` is set. Catalog telemetry (uptime, latency, eval scores) is still sample data, and no compliance certification has been issued.
 
 ---
 
@@ -158,14 +158,26 @@ The platform is structured across three core planes:
    npm test
    ```
 
+### Payments (Razorpay)
+
+Checkout settles in INR with 18% GST. Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` in `.env`, and register `https://<your-domain>/api/webhooks/razorpay` in the Razorpay dashboard for `payment.captured` and `order.paid`. A purchase is fulfilled once, whether the browser confirmation or the webhook arrives first: it records the payment, issues the licence (key shown once, stored hashed), writes a GST invoice and credits the seller's wallet minus the platform commission. Without keys and outside production, checkout completes with a clearly labelled simulated payment.
+
+Monthly plans cover 30 days and are renewed by purchasing again; automatic renewal (Razorpay Subscriptions) is not built yet. Seller payouts are requested in Seller Studio after a 7-day hold and KYC, and are marked paid by a finance admin after the bank transfer.
+
+### Live sandbox
+
+Set `ANTHROPIC_API_KEY` (and optionally `SANDBOX_MODEL`, default `claude-opus-5-5`). Visitors get 20 runs a day and signed-in users 100. Uploaded PDFs and text files are sent to the model for that one request and never stored. Without a key, the sandbox shows recorded sample answers labelled as such.
+
 ### Access control
 
 | Area | Who can use it |
 | --- | --- |
 | Catalog read (`GET /api/components`), health, seller profiles | Anyone |
-| Licenses, API keys, tickets, customization requests, tenant | Signed-in members of a buyer workspace (their own data only) |
-| Product submission | Signed-in members of a seller workspace |
-| Catalog write, customization status updates, moderation, revenue | Platform staff by role (admin, support, moderator, finance) |
+| Checkout, orders, licences, invoices, API keys, usage, tickets, customization requests | Signed-in members of a buyer workspace (their own data only) |
+| Seller dashboard, product submission, payout requests | Signed-in members of a seller workspace (their own data only) |
+| Moderation | Moderators and admins |
+| Revenue, payout processing | Finance and admins |
+| Catalog and price changes, commission rate, Twilio messaging | Admins (support can also send notifications and update customization requests) |
 
 ---
 

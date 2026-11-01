@@ -6,7 +6,7 @@
 
 import { CATALOG_COMPONENTS } from "../data/catalog-data.js";
 import { calculateCustomizationEstimate } from "../utils/estimation-engine.js";
-import { getIconSvg, showToast } from "../utils/helpers.js";
+import { showToast } from "../utils/helpers.js";
 
 export class ConfiguratorView {
   constructor(app) {
@@ -547,15 +547,18 @@ export class ConfiguratorView {
     `;
   }
 
-  submitCustomizationRequest() {
+  async submitCustomizationRequest() {
     const est = calculateCustomizationEstimate(this.config);
-    const newReqId = `CR-${Math.floor(1070 + Math.random() * 30)}`;
+    const localId = `CR-SAMPLE-${Math.floor(1070 + Math.random() * 30)}`;
+    const component = CATALOG_COMPONENTS.find((c) => c.id === this.config.baseComponentId);
 
-    this.app.addCustomizationRequest({
-      id: newReqId,
-      tenantName: "Acme Health Technologies Inc.",
+    let saved;
+    try {
+      saved = await this.app.addCustomizationRequest({
+      id: localId,
+      tenantName: "Sample workspace",
       componentId: this.config.baseComponentId,
-      componentName: "Enterprise RAG Chatbot",
+      componentName: component ? component.name : this.config.baseComponentId,
       scope: `${this.config.industry} + ${this.config.connectors.join(", ") || "Standard"} + ${this.config.auth.toUpperCase()}`,
       industry: this.config.industry,
       deploymentTarget: this.config.deployment.toUpperCase(),
@@ -565,10 +568,14 @@ export class ConfiguratorView {
       status: "Submitted",
       statusStep: 1,
       submittedDate: new Date().toISOString().split("T")[0],
-      timelineLog: [
-        { date: "Just now", event: `Architecture Request ${newReqId} created via BOM Configurator.` }
-      ]
-    });
+      timelineLog: [{ date: "Just now", event: "Created via configurator (sample mode, not saved)." }]
+      });
+    } catch (err) {
+      showToast(`Could not submit: ${err.message}`, "error");
+      return;
+    }
+    const newReqId = saved.id;
+    const isSample = !this.app.api.hasWorkspace("BUYER");
 
     let modal = document.getElementById("submission-confirm-modal");
     if (!modal) {
@@ -587,7 +594,7 @@ export class ConfiguratorView {
           <h3 style="font-family: var(--font-heading); font-size: 1.5rem; margin-bottom: 8px;">Architecture Dispatched</h3>
           <p style="color: var(--text-secondary); font-size: 0.86rem; line-height: 1.5; margin-bottom: 18px;">
             Request <strong>${newReqId}</strong> logged with indicative BOM range <strong>${est.formattedUsdRange}</strong>.
-            Platform Engineering notified for architectural verification.
+            ${isSample ? "Sample mode: sign in with a buyer account to submit real requests." : "The platform team will review the scope and send a quote."}
           </p>
           <div style="display: flex; justify-content: center; gap: 10px;">
             <button class="btn btn-secondary btn-sm" id="btn-modal-close-conf">Continue Catalog</button>
